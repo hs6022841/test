@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Lib\Feed\FeedContract;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class HomeController extends Controller
 {
+    protected $feedService;
+
     /**
      * Create a new controller instance.
      *
-     * @return void
+     * @param FeedContract $feedContract
      */
-    public function __construct()
+    public function __construct(FeedContract $feedContract)
     {
+        $this->feedService = $feedContract;
         $this->middleware('auth');
     }
 
@@ -23,6 +28,7 @@ class HomeController extends Controller
      */
     public function index()
     {
+        $this->feedService->follow(Auth::id(), 1);
         return view('home');
     }
 }
