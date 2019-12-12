@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Lib\Feed\FeedContract;
 use App\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Faker\Factory as Faker;
@@ -26,20 +28,23 @@ class LoginController extends Controller
 
     use AuthenticatesUsers;
 
+    protected $feedService;
+
     /**
      * Where to redirect users after login.
      *
      * @var string
      */
-    protected $redirectTo = '/home';
+    protected $redirectTo = '/feed';
 
     /**
      * Create a new controller instance.
      *
-     * @return void
+     * @param FeedContract $feedContract
      */
-    public function __construct()
+    public function __construct(FeedContract $feedContract)
     {
+        $this->feedService = $feedContract;
         $this->middleware('guest')->except('logout');
     }
 
@@ -80,6 +85,9 @@ class LoginController extends Controller
             Log::info("User " . $request->{$this->username()}. " does not exist, creating new user");
 
             event(new Registered($user = $this->create($request->all())));
+
+            // Executing feed setup for newly registered user synchronously
+            $this->feedService->setup($user->id, env('INITIAL_FOLLWING_USERS', []));
 
             $this->guard()->login($user);
         }

@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Lib\Feed\BasicStrategy;
+use App\Lib\Feed\PushToAllStrategy;
 use Illuminate\Support\ServiceProvider;
 
 class FeedServiceProvider extends ServiceProvider
@@ -15,10 +15,10 @@ class FeedServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->bind('App\Lib\Feed\FeedContract', function () {
-            $strategy = env('FEED_STRATEGY', 'basic');
+            $strategy = env('FEED_STRATEGY', 'push_to_all');
             switch($strategy) {
-                case 'basic':
-                    return new BasicStrategy();
+                case 'push_to_all':
+                    return new PushToAllStrategy();
                 default:
                     throw new \Exception('Undefined feed strategy!');
             }
