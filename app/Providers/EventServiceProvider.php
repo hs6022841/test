@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Events\FeedCacheWarmUp;
+use App\Events\ProfileCacheWarmUp;
 use App\Events\FeedPosted;
+use App\Listeners\FeedCacheWarmUpListener;
+use App\Listeners\ProfileCacheWarmUpListener;
 use App\Listeners\FeedPostedListener;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -21,8 +24,14 @@ class EventServiceProvider extends ServiceProvider
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],
-        FeedPosted::class=> [
+        FeedPosted::class => [
             FeedPostedListener::class,
+        ],
+        ProfileCacheWarmUp::class => [
+            ProfileCacheWarmUpListener::class,
+        ],
+        FeedCacheWarmUp::class => [
+            FeedCacheWarmUpListener::class,
         ],
     ];
 

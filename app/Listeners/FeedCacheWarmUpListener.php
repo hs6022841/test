@@ -2,12 +2,12 @@
 
 namespace App\Listeners;
 
-use App\Events\FeedPosted;
+use App\Events\FeedCacheWarmUp;
 use App\Lib\Feed\FeedContract;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
-class FeedPostedListener implements ShouldQueue
+class FeedCacheWarmUpListener implements ShouldQueue
 {
     protected $feedService;
 
@@ -24,15 +24,12 @@ class FeedPostedListener implements ShouldQueue
     /**
      * Handle the event.
      *
-     * @param FeedPosted $event
+     * @param FeedCacheWarmUp $event
      * @return bool
      */
-    public function handle(FeedPosted $event)
+    public function handle(FeedCacheWarmUp $event)
     {
-        $this->feedService->fanoutFeed([
-            'ts' => $event->ts,
-            'uuid' => $event->uuid,
-        ]);
+        $this->feedService->preloadFeed($event->userId, $event->count);
 
         // stop event propagation
         return false;
@@ -41,12 +38,12 @@ class FeedPostedListener implements ShouldQueue
     /**
      * Handle a job failure.
      *
-     * @param FeedPosted $event
+     * @param FeedCacheWarmUp $event
      * @param \Exception $exception
      * @return void
      */
-    public function failed(FeedPosted $event, $exception)
+    public function failed(FeedCacheWarmUp $event, $exception)
     {
-        Log::critical("Failed processing task, error: " . $exception->getMessage());
+        Log::critical("Failed warmining up feed cache, error: " . $exception->getMessage());
     }
 }

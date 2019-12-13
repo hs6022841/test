@@ -17,6 +17,8 @@ class Feed extends Model
         'user_id', 'uuid', 'comment', 'created_at', 'updated_at'
     ];
 
+    protected $hidden = ['id'];
+
     /**
      * Returns the available keys stored in redis
      *

@@ -8,6 +8,15 @@
                 <div class="card-header row">
                     <div class="col-sm-6">{{  __('Feed') }}</div>
                     <div class="col-sm-6 text-right">
+                        @if (Route::current()->getName() == 'feed.index')
+                        <a class="text-right btn btn-primary" href="{{ route('feed.profile') }}">
+                            {{  __('Profile') }}
+                        </a>
+                        @else
+                        <a class="text-right btn btn-primary" href="{{ route('feed.index') }}">
+                            {{  __('Feed') }}
+                        </a>
+                        @endif
                         <a class="text-right btn btn-primary" href="{{ route('feed.create') }}">
                             {{  __('Create Feed') }}
                         </a>

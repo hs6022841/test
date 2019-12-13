@@ -21,4 +21,5 @@ Auth::routes([
     'verify' => false,
 ]);
 
+Route::get('/feed/profile', 'FeedController@profile')->name('feed.profile');
 Route::resource('/feed', 'FeedController');

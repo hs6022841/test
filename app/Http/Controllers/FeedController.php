@@ -7,7 +7,6 @@ use App\Lib\Feed\FeedContract;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Webpatser\Uuid\Uuid;
 
 class FeedController extends Controller
@@ -33,6 +32,18 @@ class FeedController extends Controller
     public function index()
     {
         $feeds = $this->feedService->fetchFeed(Auth::id());
+
+        return view('feed', ['feeds' => $feeds]);
+    }
+
+    /**
+     * Show the user profile.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
+    public function profile()
+    {
+        $feeds = $this->feedService->fetchProfileFeed(Auth::id());
 
         return view('feed', ['feeds' => $feeds]);
     }

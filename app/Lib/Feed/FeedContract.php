@@ -42,9 +42,46 @@ interface FeedContract {
     public function fetchFeed($actorUserId, $offset=0, $limit=50) : ?array;
 
     /**
+     * Fetch the profile feed of a given actor
+     *
+     * @param $actorUserId
+     * @param $offset
+     * @param $limit
+     * @return array|null
+     */
+    public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : ?array;
+
+    /**
      * Post a new feed
      *
      * @param Feed $feed
      */
     public function postFeed(Feed $feed) : void;
+
+    /**
+     * Preload profile feed in cache
+     * @param $userId
+     * @param $count
+     */
+    public function preloadProfile($userId, $count) : void;
+
+    /**
+     * Preload feed in cache
+     * @param $userId
+     * @param $count
+     */
+    public function preloadFeed($userId, $count) : void;
+
+    /**
+     * Push feed to each user's feed
+     *
+     * @param array $params
+     */
+    public function fanoutFeed($params = []) : void;
+
+
+    /**
+     * Persist feed in cache into database
+     */
+    public function persist() : void;
 }

@@ -2,12 +2,12 @@
 
 namespace App\Listeners;
 
-use App\Events\FeedPosted;
+use App\Events\ProfileCacheWarmUp;
 use App\Lib\Feed\FeedContract;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
-class FeedPostedListener implements ShouldQueue
+class ProfileCacheWarmUpListener implements ShouldQueue
 {
     protected $feedService;
 
@@ -24,15 +24,12 @@ class FeedPostedListener implements ShouldQueue
     /**
      * Handle the event.
      *
-     * @param FeedPosted $event
+     * @param ProfileCacheWarmUp $event
      * @return bool
      */
-    public function handle(FeedPosted $event)
+    public function handle(ProfileCacheWarmUp $event)
     {
-        $this->feedService->fanoutFeed([
-            'ts' => $event->ts,
-            'uuid' => $event->uuid,
-        ]);
+        $this->feedService->preloadProfile($event->userId, $event->count);
 
         // stop event propagation
         return false;
@@ -41,12 +38,12 @@ class FeedPostedListener implements ShouldQueue
     /**
      * Handle a job failure.
      *
-     * @param FeedPosted $event
+     * @param ProfileCacheWarmUp $event
      * @param \Exception $exception
      * @return void
      */
-    public function failed(FeedPosted $event, $exception)
+    public function failed(ProfileCacheWarmUp $event, $exception)
     {
-        Log::critical("Failed processing task, error: " . $exception->getMessage());
+        Log::critical("Failed warmining up profile cache, error: " . $exception->getMessage());
     }
 }
