@@ -49,6 +49,7 @@ interface FeedSubscriberContract
      *
      * @param $actorId
      * @param \Closure $fanout
+     * @param int $pageSize
      */
-    public function fanoutToFollowers($actorId, \Closure $fanout) : void;
+    public function fanoutToFollowers($actorId, \Closure $fanout, $pageSize = 50) : void;
 }

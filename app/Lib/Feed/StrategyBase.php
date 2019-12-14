@@ -19,7 +19,7 @@ abstract class StrategyBase
 
     public function __construct(FeedSubscriberContract $feedSubscriberService)
     {
-        $this->cacheTTL = env('FEED_CACHE_TTL', 60);
+        $this->cacheTTL = env('CACHE_TTL', 60);
         $this->buffer = new StorageBuffer();
         $this->feedSubscriberService = $feedSubscriberService;
     }
@@ -121,7 +121,7 @@ abstract class StrategyBase
             Log::Error("Failed to persist feeds into database, feeds: " . json_encode($feeds));
             return;
         }
-        Log::info("Persisted" . count($feeds) . " feeds into database");
+        Log::info("Persisted " . count($feeds) . " feeds into database");
     }
 
 }

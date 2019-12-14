@@ -4,66 +4,85 @@
 namespace App\Lib;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Webpatser\Uuid\Uuid;
 
 class StorageBuffer
 {
     protected $bufferTimeout;
-    protected $key;
+    protected $insertKey;
+    protected $deleteKey;
 
     public function __construct()
     {
-        $this->key = 'buffer:feed';
+        $this->insertKey = 'buffer:insert';
+        $this->deleteKey = 'buffer:delete';
         $this->bufferTimeout = env('BUFFER_PERSIST_TIMEOUT', 10);
     }
 
+    /**
+     * Add into insert buffer
+     *
+     * @param $id
+     * @param $score
+     */
     public function add($id, $score)
     {
-        Redis::zAdd($this->key, $score, $id);
+        Redis::zAdd($this->insertKey, $score, $id);
     }
 
-    public function delete($id)
+    /**
+     * Add into delete buffer
+     * Also remove it from the insert buffer
+     *
+     * @param $id
+     * @param $score
+     * @throws \Exception
+     */
+    public function delete($id, $score)
     {
-        Redis::zRem($this->key, $id);
-    }
-
-    public function popMin()
-    {
-        return Redis::zPopMin($this->key);
+        Redis::multi()
+            ->zAdd($this->deleteKey, $score, $id)
+            ->zRem($this->insertKey, $id)
+            ->exec();
     }
 
     public function get($offset, $limit)
     {
-        return Redis::zRange($this->key, $offset, $limit);
+        $pagination = [
+            'limit' => [
+                'offset' => $offset,
+                'count' => $limit,
+            ]
+        ];
+
+        return Redis::zRevRangeByScore($this->insertKey, '+inf' , '-inf', $pagination);
     }
 
     public function persist(\Closure $persistToDb)
     {
-        $now = Carbon::now()->timestamp;
-        $threshold = $now - $this->bufferTimeout;
+        $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'))->timestamp;
         $ids = [];
 
-        while(true) {
-            $buffer = $this->popMin();
+        $offset = 0;
+        $limit = 2;
 
-            if (empty($buffer)) {
-                // break if nothing in the set
+        while(true) {
+            $pagination = [
+                'limit' => [
+                    'offset' => $offset,
+                    'count' => $limit,
+                ]
+            ];
+
+            $ret = Redis::zRevRangeByScore($this->insertKey, $threshold, '-inf', $pagination);
+            if(empty($ret)) {
                 break;
             }
 
-            $break = false;
-            foreach ($buffer as $id => $score) {
-                if ($score > $threshold) {
-                    // break if threshold is hit
-                    $break = true;
-                    // add the feed back
-                    $this->add($id, $score);
-                } else {
-                    $ids[] = $id;
-                }
-            }
-
-            if($break) break;
+            $offset += $limit;
+            $ids = array_merge($ids, $ret);
         }
 
         $persistToDb($ids);

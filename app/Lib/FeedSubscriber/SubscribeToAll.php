@@ -73,9 +73,8 @@ class SubscribeToAll implements FeedSubscriberContract
     /**
      * @inheritDoc
      */
-    public function fanoutToFollowers($actorId, \Closure $fanout): void
+    public function fanoutToFollowers($actorId, \Closure $fanout, $pageSize = 50): void
     {
-        $pageSize = 50;
         $cursor = 0;
         while(true) {
             //TODO: user id is not continuous...

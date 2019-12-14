@@ -42,6 +42,6 @@ class PersistBuffer extends Command
      */
     public function handle()
     {
-        $this->feedService->persistFromCache();
+        $this->feedService->persist();
     }
 }

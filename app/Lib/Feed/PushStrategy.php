@@ -17,7 +17,7 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function fetchFeed($actorUserId, $offset=0, $limit=50) : Paginator
     {
-        $uuids = Redis::zRangeByScore($this->getUserFeedKey($actorUserId), $offset, $limit);
+        $uuids = Redis::zRevRangeByScore($this->getUserFeedKey($actorUserId), $offset, $limit);
 
         if(empty($uuids)) {
             $uuids = $this->buffer->get($offset, $limit);
@@ -39,7 +39,7 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : Paginator
     {
-        $uuids = Redis::zRange($this->getProfileKey($actorUserId), $offset, $limit);
+        $uuids = Redis::zRevRangeByScore($this->getProfileKey($actorUserId), $offset, $limit);
 
         if(empty($uuids)) {
             // if no cache exists,
@@ -62,7 +62,7 @@ class PushStrategy extends StrategyBase implements FeedContract {
         Redis::multi()
             ->hMSet($this->getFeedKey($feed->uuid), $feed->toArray())
             ->expire($this->getFeedKey($feed->uuid), $this->cacheTTL)
-            ->zAdd($this->getProfileKey($feed->user_id), $feed->created_at->timestamp * -1, $feed->uuid)
+            ->zAdd($this->getProfileKey($feed->user_id), $feed->created_at->timestamp, $feed->uuid)
             ->expire($this->getProfileKey($feed->user_id), $this->cacheTTL);
 
         $this->buffer->add($feed->uuid, $feed->created_at->timestamp);
@@ -115,7 +115,7 @@ class PushStrategy extends StrategyBase implements FeedContract {
             Redis::pipeline(function ($pipe) use ($targets, $feed) {
                 foreach($targets as $userId) {
                     // making the score negative so that the timeline is desc
-                    $pipe->zAdd($this->getUserFeedKey($userId), $feed->created_at->timestamp * -1, $feed->uuid)
+                    $pipe->zAdd($this->getUserFeedKey($userId), $feed->created_at->timestamp, $feed->uuid)
                         ->expire($this->getUserFeedKey($userId), $this->cacheTTL);
                 }
             });
