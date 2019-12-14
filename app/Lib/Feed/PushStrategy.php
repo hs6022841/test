@@ -115,21 +115,13 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function fanoutFeed(Feed $feed) : void {
         $this->feedSubscriberService->fanoutToFollowers($feed->user_id, function($userIds) use ($feed) {
-            $targets = [];
             // no need to push to none exist feeds, as they are not active
-            foreach($userIds as $userId) {
+            foreach($userIds as $key=>$userId) {
                 $exists = Redis::exists($this->getUserFeedKey($userId));
-                if(!$exists && $userId != $feed->user_id) continue;
-                $targets[] = $userId;
+                if(!$exists && $userId != $feed->user_id) unset($userIds[$key]);
             }
 
-            Redis::pipeline(function ($pipe) use ($targets, $feed) {
-                foreach($targets as $userId) {
-                    // making the score negative so that the timeline is desc
-                    $pipe->zAdd($this->getUserFeedKey($userId), Carbon::now()->timestamp, $feed->uuid)
-                        ->expire($this->getUserFeedKey($userId), $this->cacheTTL);
-                }
-            });
+            $this->addFeedsToTargets($userIds, $feed);
         });
     }
 }

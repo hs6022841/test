@@ -7,6 +7,7 @@ namespace App\Lib\Feed;
 use App\Feed;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use App\Lib\StorageBuffer;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -60,18 +61,18 @@ abstract class StrategyBase
      * @return array
      */
     protected function findFeedByUuid(array $uuids) {
-        $feeds = $remain = [];
-        foreach($uuids as $uuid) {
+        $feeds = [];
+        foreach($uuids as $key=>$uuid) {
             $cache = Redis::hGetAll($this->getFeedKey($uuid));
 
             if(!empty($cache)) {
                 $feeds[$uuid] = (new Feed())->fill($cache);
+                unset($uuids[$key]);
                 continue;
             }
-            $remain[] = $uuid;
         }
 
-        $db = Feed::whereIn('uuid', $remain)
+        $db = Feed::whereIn('uuid', $uuids)
             ->OrderBy('created_at', 'desc')
             ->get();
         foreach($db as $data) {
@@ -81,6 +82,20 @@ abstract class StrategyBase
         }
 
         return $feeds;
+    }
+
+    protected function addFeedsToTargets($userIds, Feed $feed)
+    {
+        if(!is_array($userIds)) {
+            $userIds = [$userIds];
+        }
+        Redis::pipeline(function ($pipe) use ($userIds, $feed) {
+            foreach($userIds as $userId) {
+                // making the score negative so that the timeline is desc
+                $pipe->zAdd($this->getUserFeedKey($userId), Carbon::now()->timestamp, $feed->uuid)
+                    ->expire($this->getUserFeedKey($userId), $this->cacheTTL);
+            }
+        });
     }
 
     /**
