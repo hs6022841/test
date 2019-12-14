@@ -27,4 +27,14 @@ class Feed extends Model
     public function props() {
         return $this->fillable;
     }
+
+    /**
+     * Feed belongs to an user
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

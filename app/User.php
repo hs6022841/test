@@ -36,4 +36,15 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+
+    /**
+     * User has many feeds
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function feeds()
+    {
+        return $this->hasMany(Feed::class);
+    }
 }

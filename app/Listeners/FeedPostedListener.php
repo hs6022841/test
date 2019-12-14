@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\FeedPosted;
+use App\Feed;
 use App\Lib\Feed\FeedContract;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
@@ -29,10 +30,8 @@ class FeedPostedListener implements ShouldQueue
      */
     public function handle(FeedPosted $event)
     {
-        $this->feedService->fanoutFeed([
-            'ts' => $event->ts,
-            'uuid' => $event->uuid,
-        ]);
+        $feed = (new Feed())->fill($event->feed);
+        $this->feedService->fanoutFeed($feed);
 
         // stop event propagation
         return false;

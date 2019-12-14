@@ -7,7 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
-class PersistFeed extends Command
+class PersistBuffer extends Command
 {
     protected $feedService;
     /**
@@ -15,7 +15,7 @@ class PersistFeed extends Command
      *
      * @var string
      */
-    protected $signature = 'feed:persist';
+    protected $signature = 'buffer:persist';
 
     /**
      * The console command description.
@@ -42,6 +42,6 @@ class PersistFeed extends Command
      */
     public function handle()
     {
-        $this->feedService->persist();
+        $this->feedService->persistFromCache();
     }
 }

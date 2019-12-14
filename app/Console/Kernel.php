@@ -24,8 +24,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')
-        //          ->hourly();
+        // FIXME: Ideally this should be inside of a queue if buffer is large enough
+        $schedule->command('buffer:persist')
+            ->withoutOverlapping()
+            ->everyMinute();
     }
 
     /**

@@ -3,43 +3,19 @@
 namespace App\Lib\Feed;
 
 use App\Feed;
+use Illuminate\Pagination\Paginator;
 
-interface FeedContract {
-
-    /**
-     * Initial following list for newly registered users
-     *
-     * @param $actorUserId
-     * @param array $targetUserIds
-     */
-    public function setup($actorUserId, $targetUserIds = []) : void;
-
-    /**
-     * Follow an user
-     *
-     * @param $actorUserId
-     * @param $targetUserId
-     */
-    public function follow($actorUserId, $targetUserId) : void;
-
-    /**
-     * Un-follow an user
-     *
-     * @param $actorUserId
-     * @param $targetUserId
-     */
-    public function unfollow($actorUserId, $targetUserId) : void;
-
-
+interface FeedContract
+{
     /**
      * Fetch the feed of a given actor
      *
      * @param $actorUserId
      * @param $offset
      * @param $limit
-     * @return array|null
+     * @return Paginator
      */
-    public function fetchFeed($actorUserId, $offset=0, $limit=50) : ?array;
+    public function fetchFeed($actorUserId, $offset=0, $limit=50) : Paginator;
 
     /**
      * Fetch the profile feed of a given actor
@@ -47,9 +23,9 @@ interface FeedContract {
      * @param $actorUserId
      * @param $offset
      * @param $limit
-     * @return array|null
+     * @return Paginator
      */
-    public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : ?array;
+    public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : Paginator;
 
     /**
      * Post a new feed
@@ -75,9 +51,9 @@ interface FeedContract {
     /**
      * Push feed to each user's feed
      *
-     * @param array $params
+     * @param Feed $feed
      */
-    public function fanoutFeed($params = []) : void;
+    public function fanoutFeed(Feed $feed) : void;
 
 
     /**

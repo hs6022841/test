@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Lib\Feed\FeedContract;
+use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use App\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Faker\Factory as Faker;
@@ -28,7 +27,7 @@ class LoginController extends Controller
 
     use AuthenticatesUsers;
 
-    protected $feedService;
+    protected $feedSubscriberService;
 
     /**
      * Where to redirect users after login.
@@ -40,11 +39,11 @@ class LoginController extends Controller
     /**
      * Create a new controller instance.
      *
-     * @param FeedContract $feedContract
+     * @param FeedSubscriberContract $feedSubscriberService
      */
-    public function __construct(FeedContract $feedContract)
+    public function __construct(FeedSubscriberContract $feedSubscriberService)
     {
-        $this->feedService = $feedContract;
+        $this->feedSubscriberService = $feedSubscriberService;
         $this->middleware('guest')->except('logout');
     }
 
@@ -87,7 +86,7 @@ class LoginController extends Controller
             event(new Registered($user = $this->create($request->all())));
 
             // Executing feed setup for newly registered user synchronously
-            $this->feedService->setup($user->id, env('INITIAL_FOLLWING_USERS', []));
+            $this->feedSubscriberService->setup($user->id);
 
             $this->guard()->login($user);
         }

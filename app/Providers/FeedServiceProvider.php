@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
-use App\Lib\Feed\PushToAllStrategy;
+use App\Lib\Feed\FeedContract;
+use App\Lib\Feed\PushStrategy;
+use App\Lib\FeedSubscriber\FeedSubscriberContract;
+use App\Lib\FeedSubscriber\SubscribeToAll;
 use Illuminate\Support\ServiceProvider;
 
 class FeedServiceProvider extends ServiceProvider
@@ -14,13 +17,23 @@ class FeedServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->bind('App\Lib\Feed\FeedContract', function () {
-            $strategy = env('FEED_STRATEGY', 'push_to_all');
+        $this->app->bind(FeedSubscriberContract::class, function () {
+            $strategy = env('FEED_SUBSCRIBER', 'all');
             switch($strategy) {
-                case 'push_to_all':
-                    return new PushToAllStrategy();
+                case 'all':
+                    return new SubscribeToAll();
                 default:
-                    throw new \Exception('Undefined feed strategy!');
+                    throw new \Exception('Undefined feed subscriber strategy!');
+            }
+        });
+
+        $this->app->bind(FeedContract::class, function ($service) {
+            $strategy = env('FEED_FANOUT_STRATEGY', 'push');
+            switch($strategy) {
+                case 'push':
+                    return new PushStrategy($service->make(FeedSubscriberContract::class));
+                default:
+                    throw new \Exception('Undefined feed fanout strategy!');
             }
         });
     }
