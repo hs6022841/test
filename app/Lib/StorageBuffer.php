@@ -4,9 +4,7 @@
 namespace App\Lib;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Webpatser\Uuid\Uuid;
 
 class StorageBuffer
 {
@@ -60,13 +58,21 @@ class StorageBuffer
         return Redis::zRevRangeByScore($this->insertKey, '+inf' , '-inf', $pagination);
     }
 
-    public function persist(\Closure $persistToDb)
+    /**
+     * fetch inserts and deletes from the buffer and persist them into db
+     * note that transactions should be handled by called inside the closures
+     *
+     * @param \Closure $persistInsert
+     * @param \Closure $persistDelete
+     */
+    public function persist(\Closure $persistInsert, \Closure $persistDelete)
     {
         $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'))->timestamp;
-        $ids = [];
+        $insertIds = [];
+        $deleteIds = [];
 
         $offset = 0;
-        $limit = 2;
+        $limit = 50;
 
         while(true) {
             $pagination = [
@@ -82,9 +88,32 @@ class StorageBuffer
             }
 
             $offset += $limit;
-            $ids = array_merge($ids, $ret);
+            $insertIds = array_merge($insertIds, $ret);
         }
 
-        $persistToDb($ids);
+        $offset = 0;
+        $limit = 50;
+        while(true) {
+            $pagination = [
+                'limit' => [
+                    'offset' => $offset,
+                    'count' => $limit,
+                ]
+            ];
+
+            $ret = Redis::zRevRangeByScore($this->deleteKey, $threshold, '-inf', $pagination);
+            if(empty($ret)) {
+                break;
+            }
+
+            $offset += $limit;
+            $deleteIds = array_merge($deleteIds, $ret);
+        }
+
+        $persistInsert($insertIds);
+        $persistDelete($deleteIds);
+
+        Redis::zRem($this->insertKey, ...$insertIds);
+        Redis::zRem($this->deleteKey, ...$deleteIds);
     }
 }

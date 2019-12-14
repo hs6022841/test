@@ -2,16 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Feed;
-use App\Lib\FeedSubscriber\SubscribeToAll;
 use App\Lib\StorageBuffer;
-use App\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class StorageBufferTest extends TestCase
 {
@@ -30,9 +25,12 @@ class StorageBufferTest extends TestCase
 
     function tearDown(): void
     {
-        Redis::del($this->insertKey);
-        Redis::del($this->deleteKey);
-        Redis::del($this->modifiedAtKey);
+        // get rid of everything
+        $prefix = Config::get('database.redis.options.prefix');
+        $keys = Redis::keys('*');
+        foreach($keys as $key) {
+            Redis::del(str_replace($prefix, '', $key));
+        }
         putenv("BUFFER_PERSIST_TIMEOUT=60");
         parent::tearDown();
     }
@@ -123,8 +121,19 @@ class StorageBufferTest extends TestCase
             $i++;
         }
 
+        // delete 13 and 21
+        $this->instance->delete(8, $before);
+        $this->instance->delete(21, $after);
+
         $this->instance->persist(function($ids) {
-            $this->assertEquals(12, count($ids), 'There should be 12 ids returned');
+            $this->assertEquals(11, count($ids), 'There should be 11 ids returned for insert');
+        }, function($ids) {
+            $this->assertEquals(1, count($ids), 'There should be 1 ids returned for delete, as the other one is before the threshold');
         });
+
+        $ret = Redis::zRange($this->insertKey, 0, -1);
+        $this->assertEquals(12, count($ret), 'There should be 12 ids remaining for insert');
+        $ret = Redis::zRange($this->deleteKey, 0, -1);
+        $this->assertEquals(1, count($ret), 'There should be 1 ids remaining for delete');
     }
 }

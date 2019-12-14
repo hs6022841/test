@@ -35,6 +35,13 @@ interface FeedContract
     public function postFeed(Feed $feed) : void;
 
     /**
+     * Delete a feed
+     *
+     * @param Feed $feed
+     */
+    public function deleteFeed(Feed $feed) : void;
+
+    /**
      * Preload profile feed in cache
      * @param $userId
      * @param $count

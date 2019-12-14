@@ -6,6 +6,7 @@ use App\Events\FeedCacheWarmUp;
 use App\Events\FeedPosted;
 use App\Events\ProfileCacheWarmUp;
 use App\Feed;
+use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Redis;
 
@@ -62,16 +63,24 @@ class PushStrategy extends StrategyBase implements FeedContract {
         Redis::multi()
             ->hMSet($this->getFeedKey($feed->uuid), $feed->toArray())
             ->expire($this->getFeedKey($feed->uuid), $this->cacheTTL)
-            ->zAdd($this->getProfileKey($feed->user_id), $feed->created_at->timestamp, $feed->uuid)
+            ->zAdd($this->getProfileKey($feed->user_id), Carbon::now()->timestamp, $feed->uuid)
             ->expire($this->getProfileKey($feed->user_id), $this->cacheTTL);
 
-        $this->buffer->add($feed->uuid, $feed->created_at->timestamp);
+        $this->buffer->add($feed->uuid, Carbon::now()->timestamp);
 
         Redis::exec();
 
         // dispatch the event for feed fanout process
         // Note that passing an uncommitted feed across event is going to hang the process
         event(new FeedPosted($feed->toArray()));
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function deleteFeed(Feed $feed): void
+    {
+        $this->buffer->delete($feed->uuid, Carbon::now()->timestamp);
     }
 
     /**
@@ -95,7 +104,9 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function persist() : void {
         $this->buffer->persist(function($uuids) {
-            $this->saveFeedToDb($uuids);
+            $this->persistInsertion($uuids);
+        }, function($uuids) {
+            $this->persistDeletion($uuids);
         });
     }
 
@@ -108,14 +119,14 @@ class PushStrategy extends StrategyBase implements FeedContract {
             // no need to push to none exist feeds, as they are not active
             foreach($userIds as $userId) {
                 $exists = Redis::exists($this->getUserFeedKey($userId));
-                if(!$exists) continue;
+                if(!$exists && $userId != $feed->user_id) continue;
                 $targets[] = $userId;
             }
 
             Redis::pipeline(function ($pipe) use ($targets, $feed) {
                 foreach($targets as $userId) {
                     // making the score negative so that the timeline is desc
-                    $pipe->zAdd($this->getUserFeedKey($userId), $feed->created_at->timestamp, $feed->uuid)
+                    $pipe->zAdd($this->getUserFeedKey($userId), Carbon::now()->timestamp, $feed->uuid)
                         ->expire($this->getUserFeedKey($userId), $this->cacheTTL);
                 }
             });

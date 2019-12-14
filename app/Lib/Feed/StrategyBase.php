@@ -108,7 +108,7 @@ abstract class StrategyBase
         }
     }
 
-    protected function saveFeedToDb(array $uuids) {
+    protected function persistInsertion(array $uuids) {
         $feeds = [];
         foreach($uuids as $uuid) {
             $feeds[] = Redis::hGetAll($this->getFeedKey($uuid));
@@ -124,4 +124,12 @@ abstract class StrategyBase
         Log::info("Persisted " . count($feeds) . " feeds into database");
     }
 
+    protected function persistDeletion(array $uuids) {
+
+        Log::info("Deleting " . count($uuids) . " feeds from database");
+
+        Feed::whereIn('uuid', $uuids)->delete();
+
+        Log::info("Deleted " . count($uuids) . " feeds from database");
+    }
 }

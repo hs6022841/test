@@ -2,7 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Feed;
 use App\Lib\FeedSubscriber\SubscribeToAll;
 use App\User;
 use Illuminate\Support\Facades\Redis;
@@ -23,21 +22,13 @@ class SubscribeToAllTest extends TestCase
     {
         $this->instance = new SubscribeToAll();
 
+        parent::setUp();
         $this->user1 = factory(User::class)->create([
             'id' => 1
-        ])->each(function ($user) {
-            $user->feeds()->createMany(
-                factory(Feed::class, 5)->make()->toArray()
-            );
-        });
+        ]);
         $this->user2 = factory(User::class)->create([
             'id' => 2
-        ])->each(function ($user) {
-            $user->feeds()->createMany(
-                factory(Feed::class, 5)->make()->toArray()
-            );
-        });
-        parent::setUp();
+        ]);
     }
 
     function tearDown(): void
