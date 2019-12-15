@@ -4,43 +4,25 @@
 namespace App\Lib;
 
 
+use App\Feed;
 use Illuminate\Pagination\Paginator;
 
 class TimeSeriesPaginator extends Paginator
 {
 
-    // holds the data <-> $ts mapping
-    protected $mapping = [];
-    protected $pageName = 'last';
-
     /**
      * TimeSeriesPaginator constructor.
      *
-     * @param array $items has to be in format of [$data=>$ts]
+     * @param $items
      * @param $perPage
+     * @throws \Exception
      */
-    public function __construct(array $items, $perPage)
+    public function __construct($items, $perPage)
     {
-        $this->mapping = $items;
         parent::__construct($items, $perPage, null, []);
-    }
-
-    public function getMapping()
-    {
-        return $this->mapping;
-    }
-
-    /**
-     * Set the items for the paginator.
-     *
-     * @param  mixed  $items
-     * @return void
-     */
-    protected function setItems($items)
-    {
-        $items = array_keys($items);
-
-        parent::setItems($items);
+        if($this->items->first() && ! $this->items->first() instanceof Feed) {
+            throw new \Exception("Collection items has to be an instance of Feed");
+        }
     }
 
     /**
@@ -52,11 +34,11 @@ class TimeSeriesPaginator extends Paginator
     {
         return [
             'data' => $this->items->toArray(),
-            'from' => $this->fromTime(),
+            'from' => $this->timeFrom(),
             'next_page_url' => $this->nextPageUrl(),
             'path' => $this->path,
             'per_page' => $this->perPage(),
-            'to' => $this->toTime(),
+            'to' => $this->timeTo(),
         ];
     }
 
@@ -75,9 +57,9 @@ class TimeSeriesPaginator extends Paginator
      *
      * @return mixed
      */
-    public function fromTime()
+    public function timeFrom()
     {
-        return $this->items->count() > 0 ? $this->mapping[$this->items->first()] : null;
+        return $this->items->count() > 0 ? $this->items->first()->created_at : null;
     }
 
     /**
@@ -95,9 +77,9 @@ class TimeSeriesPaginator extends Paginator
      *
      * @return mixed
      */
-    public function toTime()
+    public function timeTo()
     {
-        return $this->items->count() > 0 ? $this->mapping[$this->items->last()] : null;
+        return $this->items->count() > 0 ? $this->items->last()->created_at : null;
     }
 
     /**
@@ -107,27 +89,7 @@ class TimeSeriesPaginator extends Paginator
      */
     public function nextPageUrl()
     {
-        return $this->url($this->toTime());
+        return $this->url($this->timeTo()->getPreciseTimestamp(3));
     }
-
-    /**
-     * Contact and append another paginator (b) to the current one (a),
-     * Item should persist the order following the scheme of a + b
-     * FromTime should taken from a
-     * ToTime should taken from b
-     *
-     * @param TimeSeriesPaginator $p
-     * @return $this
-     */
-    public function concatPaginator(TimeSeriesPaginator $p)
-    {
-        $this->mapping = array_merge($this->mapping, $p->getMapping());
-        $newItems = $this->items->concat($p->items())->toArray();
-        $newItems = array_combine($newItems, array_fill(0, count($newItems), null));
-        $this->setItems($newItems);
-        return $this;
-    }
-
-    public function 
 
 }

@@ -6,8 +6,10 @@ use App\Events\FeedCacheWarmUp;
 use App\Events\FeedPosted;
 use App\Events\ProfileCacheWarmUp;
 use App\Feed;
+use App\Lib\TimeSeriesCollection;
 use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -16,12 +18,41 @@ class PushStrategy extends StrategyBase implements FeedContract {
 
     /**
      * @inheritDoc
+     * @throws \Exception
      */
-    public function fetchFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator
+    public function fetchUserFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator
     {
         $time = is_null($time) ? Carbon::now() : $time;
+        $feeds = new Collection();
+        $remaining = $limit;
+        while($remaining > 0) {
+            // factor is a multiplier so that when $remaining is small enough,
+            // we will fetch $factor * $remaining $items, then take the first $remaining items
+            // to save bunch of potential round trips of db/redis call
+            $factor = $remaining <= 10 ? 10 : 1;
+            $ret = $this->loadUserFeed($actorUserId, $time, $factor * $remaining);
+            if($ret->count() == 0) {
+                break;
+            }
+            $ret = $this->findFeedByUuid($ret);
+            $ret = $ret->slice(0, $remaining);
+            $feeds = $feeds->merge($ret);
+            $remaining -= $ret->count();
+            $time = $ret->last()->created_at;
+        }
+        return new TimeSeriesPaginator($feeds, $limit);
+    }
 
-        $paginator = $this->loadFeed(
+
+    /**
+     * @param $actorUserId
+     * @param Carbon $time
+     * @param $limit
+     * @return TimeSeriesCollection
+     */
+    protected function loadUserFeed($actorUserId, Carbon $time, $limit) {
+
+        return $this->loadFeed(
             $this->getUserFeedKey($actorUserId),
             $actorUserId,
             $time,
@@ -31,21 +62,44 @@ class PushStrategy extends StrategyBase implements FeedContract {
                 return $this->loadFeedFromDb($time, $limit);
             }
         );
-
-        // TODO: should keep on fetching recursively untill meet limit/ maybe should put this outside somewhere
-        $uuids = $this->findFeedByUuid($paginator->items());
-        return $paginator;
     }
-
 
     /**
      * @inheritDoc
+     * @throws \Exception
      */
     public function fetchProfileFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator
     {
         $time = is_null($time) ? Carbon::now() : $time;
+        $feeds = new Collection();
+        $remaining = $limit;
+        while($remaining > 0) {
+            // factor is a multiplier so that when $remaining is small enough,
+            // we will fetch $factor * $remaining $items, then take the first $remaining items
+            // to save bunch of potential round trips of db/redis call
+            $factor = $remaining <= 10 ? 10 : 1;
+            $ret = $this->loadProfileFeed($actorUserId, $time, $factor * $remaining);
+            if($ret->count() == 0) {
+                break;
+            }
+            $ret = $this->findFeedByUuid($ret);
+            $ret = $ret->slice(0, $remaining);
+            $feeds = $feeds->merge($ret);
+            $remaining -= $ret->count();
+            $time = $ret->last()->created_at;
+        }
+        return new TimeSeriesPaginator($feeds, $limit);
+    }
 
-        $paginator = $this->loadFeed(
+    /**
+     * @param $actorUserId
+     * @param Carbon $time
+     * @param $limit
+     * @return TimeSeriesCollection
+     */
+    protected function loadProfileFeed($actorUserId, Carbon $time, $limit) {
+
+        return $this->loadFeed(
             $this->getProfileKey($actorUserId),
             $actorUserId,
             $time,
@@ -55,9 +109,6 @@ class PushStrategy extends StrategyBase implements FeedContract {
                 return $this->loadFeedFromDb($time, $limit, $actorUserId);
             }
         );
-
-        return $paginator;
-
     }
 
     protected function loadFeed($key, $actorUserId, $time, $limit, $event, \Closure $dbQuery) {
@@ -65,10 +116,10 @@ class PushStrategy extends StrategyBase implements FeedContract {
         $ret = get_timeseries($key, $time, $limit);
         if($ret->count() < $limit) {
             // fetch the reset from db
-            $dbTime = $ret->count() == 0 ? $time : Carbon::createFromTimestampMs($ret->toTime());
+            $dbTime = $ret->count() == 0 ? $time : $ret->timeTo();
             $dbLimit = $limit - $ret->count();
             $dbRet = $dbQuery($dbTime, $dbLimit);
-            $ret = $ret->concatPaginator($dbRet);
+            $ret = $ret->concat($dbRet);
             // if there are data returned, we start to warm up cache
             if(count($dbRet) != 0) {
                 event(new $event($actorUserId, $time));
@@ -116,12 +167,11 @@ class PushStrategy extends StrategyBase implements FeedContract {
         // For now, load everything
         $time = Carbon::now();
         while(true) {
-            $paginator = $this->loadFeedFromDb($time, 100, $userId);
-            if($paginator->count() == 0) {
+            $feeds = $this->loadFeedFromDb($time, 100, $userId);
+            if($feeds->count() == 0) {
                 break;
             }
-            $time = Carbon::createFromTimestampMs($paginator->toTime());
-            $feeds = $paginator->getMapping();
+            $time = $feeds->timeTo();
             Redis::pipeline(function ($pipe) use ($userId, $feeds) {
                 foreach($feeds as $uuid=>$createdAt) {
                     // making the score negative so that the timeline is desc
@@ -143,12 +193,11 @@ class PushStrategy extends StrategyBase implements FeedContract {
         // For now, load everything
         $time = Carbon::now();
         while(true) {
-            $paginator = $this->loadFeedFromDb($time, 100);
-            if($paginator->count() == 0) {
+            $feeds = $this->loadFeedFromDb($time, 100);
+            if($feeds->count() == 0) {
                 break;
             }
-            $time = Carbon::createFromTimestampMs($paginator->toTime());
-            $feeds = $paginator->getMapping();
+            $time = $feeds->timeTo();
             Redis::pipeline(function ($pipe) use ($userId, $feeds) {
                 foreach($feeds as $uuid=>$createdAt) {
                     // making the score negative so that the timeline is desc

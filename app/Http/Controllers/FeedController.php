@@ -38,7 +38,7 @@ class FeedController extends Controller
         // preload the followers to warm up the cache
         $this->feedSubscriberService->loadFollowers(Auth::id());
 
-        $feeds = $this->feedService->fetchFeed(Auth::id());
+        $feeds = $this->feedService->fetchUserFeed(Auth::id());
 
         return view('feed', ['feeds' => $feeds]);
     }

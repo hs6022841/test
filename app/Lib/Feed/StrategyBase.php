@@ -7,9 +7,9 @@ namespace App\Lib\Feed;
 use App\Feed;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use App\Lib\StorageBuffer;
-use App\Lib\TimeSeriesPaginator;
+use App\Lib\TimeSeriesCollection;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -49,33 +49,28 @@ abstract class StrategyBase
             ->limit($limit)
             ->get();
 
-        $result = [];
-        foreach($feeds as $feed) {
-            $result[$feed['uuid']] = $feed['created_at']->getPreciseTimestamp(3);
-        }
-
-        return new TimeSeriesPaginator($result, $limit);
+        return new TimeSeriesCollection($feeds);
     }
 
     /**
      * Query cache first for feeds, if not found in cache, load from db
      *
-     * @param array $uuids
-     * @return array
+     * @param TimeSeriesCollection $uuids
+     * @return Collection
      */
-    protected function findFeedByUuid(array $uuids) {
+    protected function findFeedByUuid(TimeSeriesCollection $uuids) {
         $feeds = [];
-        foreach($uuids as $key=>$uuid) {
+        foreach($uuids as $uuid=>$time) {
             $cache = Redis::hGetAll($this->getFeedKey($uuid));
 
             if(!empty($cache)) {
                 $feeds[$uuid] = (new Feed())->fill($cache);
-                unset($uuids[$key]);
+                unset($uuids[$uuid]);
                 continue;
             }
         }
 
-        $db = Feed::whereIn('uuid', $uuids)
+        $db = Feed::whereIn('uuid', $uuids->uuids())
             ->OrderBy('created_at', 'desc')
             ->get();
         foreach($db as $data) {
@@ -84,7 +79,7 @@ abstract class StrategyBase
             Redis::expire($this->getFeedKey($data->uuid), $this->cacheTTL);
         }
 
-        return $feeds;
+        return collect(array_values($feeds));
     }
 
     protected function addFeedsToTargets($userIds, Feed $feed)
@@ -101,29 +96,29 @@ abstract class StrategyBase
         });
     }
 
-    protected function persistInsertion(array $uuids)
+    protected function persistInsertion(Collection $uuids)
     {
         $feeds = [];
         foreach($uuids as $uuid) {
             $feeds[] = Redis::hGetAll($this->getFeedKey($uuid));
         }
 
-        Log::info("Persisting " . count($feeds) . " feeds into database");
+        Log::info("Persisting " . $uuids->count() . " feeds into database");
 
         $ret = Feed::insert($feeds);
         if(!$ret) {
             Log::Error("Failed to persist feeds into database, feeds: " . json_encode($feeds));
             return;
         }
-        Log::info("Persisted " . count($feeds) . " feeds into database");
+        Log::info("Persisted " . $uuids->count() . " feeds into database");
     }
 
-    protected function persistDeletion(array $uuids) {
+    protected function persistDeletion(Collection $uuids) {
 
-        Log::info("Deleting " . count($uuids) . " feeds from database");
+        Log::info("Deleting " . $uuids->count() . " feeds from database");
 
         Feed::whereIn('uuid', $uuids)->delete();
 
-        Log::info("Deleted " . count($uuids) . " feeds from database");
+        Log::info("Deleted " . $uuids->count() . " feeds from database");
     }
 }

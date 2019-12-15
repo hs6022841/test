@@ -19,7 +19,7 @@ class CreateFeedsTable extends Migration
             $table->string('uuid', 36)->unique();
             $table->text('comment');
             // millisecond precision
-            $table->timestamps(6);
+            $table->timestamps(3);
 
             $table->foreign('user_id')
                 ->references('id')->on('users')

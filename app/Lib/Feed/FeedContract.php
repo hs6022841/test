@@ -5,7 +5,6 @@ namespace App\Lib\Feed;
 use App\Feed;
 use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
-use Illuminate\Pagination\Paginator;
 
 interface FeedContract
 {
@@ -15,9 +14,9 @@ interface FeedContract
      * @param $actorUserId
      * @param $time
      * @param $limit
-     * @return Paginator
+     * @return TimeSeriesPaginator
      */
-    public function fetchFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator;
+    public function fetchUserFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator;
 
     /**
      * Fetch the profile feed of a given actor
@@ -25,7 +24,7 @@ interface FeedContract
      * @param $actorUserId
      * @param $time
      * @param $limit
-     * @return Paginator
+     * @return TimeSeriesPaginator
      */
     public function fetchProfileFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator;
 

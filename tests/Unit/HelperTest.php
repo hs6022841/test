@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Unit;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Config;
@@ -45,17 +45,17 @@ class HelperTest extends TestCase
 
         // first page
         $ret = get_timeseries($this->key, $now, $limit);
-        $this->assertEquals(16, $ret->lastItem(), 'first page last element should be 16');
+        $this->assertEquals(16, $ret->uuids()->last(), 'first page last element should be 16');
 
         // second page
-        $from = Carbon::createFromTimestampMs($ret->toTime());
+        $from = $ret->timeTo();
         $ret = get_timeseries($this->key, $from, $limit);
-        $this->assertEquals(6, $ret->lastItem(), 'second page last element should be 6');
+        $this->assertEquals(6, $ret->uuids()->last(), 'second page last element should be 6');
 
         // third page
-        $from = Carbon::createFromTimestampMs($ret->toTime());
+        $from = $ret->timeTo();
         $ret = get_timeseries($this->key, $from, $limit);
-        $this->assertEquals(1, $ret->lastItem(), 'third page last element should be 1');
+        $this->assertEquals(1, $ret->uuids()->last(), 'third page last element should be 1');
         $this->assertEquals(5, $ret->count(), 'third page should have 5 remaining items');
     }
 
@@ -77,17 +77,17 @@ class HelperTest extends TestCase
 
         // first page
         $ret = get_timeseries($this->key, Carbon::now(), $limit);
-        $this->assertEquals(15, $ret->lastItem(), 'first page last element should be 15, (skipping 21)');
+        $this->assertEquals(15, $ret->uuids()->last(), 'first page last element should be 15, (skipping 21)');
 
         // second page
-        $from = Carbon::createFromTimestampMs($ret->toTime());
+        $from = $ret->timeTo();
         $ret = get_timeseries($this->key, $from, $limit);
-        $this->assertEquals(4, $ret->lastItem(), 'second page last element should be 4, (skipping 13)');
+        $this->assertEquals(4, $ret->uuids()->last(), 'second page last element should be 4, (skipping 13)');
 
         // third page
-        $from = Carbon::createFromTimestampMs($ret->toTime());
+        $from = $ret->timeTo();
         $ret = get_timeseries($this->key, $from, $limit);
-        $this->assertEquals(1, $ret->lastItem(), 'third page last element should be 1');
+        $this->assertEquals(1, $ret->uuids()->last(), 'third page last element should be 1');
         $this->assertEquals(3, count($ret), 'third page should have 3 remaining items');
     }
 }

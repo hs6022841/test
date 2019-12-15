@@ -1,6 +1,6 @@
 <?php
 
-use App\Lib\TimeSeriesPaginator;
+use App\Lib\TimeSeriesCollection;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Redis;
 
@@ -17,5 +17,5 @@ function get_timeseries($key, Carbon $time, $limit)
 
     // parenthesis is for excluding $score
     $ret = Redis::zRevRangeByScore($key, "($score"  , '-inf', $pagination);
-    return new TimeSeriesPaginator($ret, $limit);
+    return new TimeSeriesCollection($ret);
 }

@@ -4,6 +4,7 @@
 namespace App\Lib;
 
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
 
 class StorageBuffer
@@ -44,6 +45,7 @@ class StorageBuffer
         Redis::multi()
             ->zAdd($this->deleteKey, $score, $id)
             ->zRem($this->insertKey, $id)
+            ->del("feed:$id")
             ->exec();
     }
 
@@ -58,7 +60,7 @@ class StorageBuffer
     {
         $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'));
 
-        $insertIds = [];
+        $insertIds = new Collection();
         $time = $threshold;
         $limit = 2;
 
@@ -68,20 +70,20 @@ class StorageBuffer
                 break;
             }
 
-            $time = Carbon::createFromTimestampMs($ret->toTime());
-            $insertIds = array_merge($insertIds, $ret->items());
+            $time = $ret->timeTo();
+            $insertIds = $ret->uuids()->merge($insertIds);
         }
 
         $time = $threshold;
         $limit = 2;
-        $deleteIds = [];
+        $deleteIds = new Collection();
         while(true) {
             $ret = get_timeseries($this->deleteKey, $time, $limit);
             if($ret->count() == 0) {
                 break;
             }
-            $time = Carbon::createFromTimestampMs($ret->toTime());
-            $deleteIds = array_merge($deleteIds, $ret->items());
+            $time = $ret->timeTo();
+            $deleteIds = $ret->uuids()->merge($deleteIds);
         }
 
         $persistInsert($insertIds);
