@@ -52,6 +52,18 @@ class StorageBuffer
     }
 
     /**
+     * Get the feeds inside buffer
+     *
+     * @param Carbon $time
+     * @param $limit
+     * @return TimeSeriesCollection
+     */
+    public function get(Carbon $time, $limit)
+    {
+        return get_timeseries($this->insertKey, $time, $limit);
+    }
+
+    /**
      * fetch inserts and deletes from the buffer and persist them into db
      * note that transactions should be handled by called inside the closures
      *
@@ -60,7 +72,7 @@ class StorageBuffer
      */
     public function persist(\Closure $persistInsert, \Closure $persistDelete)
     {
-        $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'));
+        $threshold = Carbon::now()->subSeconds(env('BUFFER_PERSIST_TIMEOUT'));
 
         $insertIds = new Collection();
         $time = $threshold;

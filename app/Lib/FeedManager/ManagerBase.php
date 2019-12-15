@@ -7,22 +7,26 @@ namespace App\Lib\FeedManager;
 use App\Events\FeedCachePreloaded;
 use App\Events\ProfileCachePreloaded;
 use App\Feed;
+use App\Lib\StorageBuffer;
 use App\Lib\TimeSeriesCollection;
 use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 abstract class ManagerBase
 {
     protected $cacheTTL;
     protected $actor;
+    protected $buffer;
 
     public function __construct(Authenticatable $actor)
     {
         $this->cacheTTL = env('CACHE_TTL', 60);
         $this->actor = $actor;
+        $this->buffer = new StorageBuffer();
     }
 
     /**
@@ -84,6 +88,9 @@ abstract class ManagerBase
             }
             $ret = $this->findFeedByUuid($ret);
             $ret = $ret->slice(0, $remaining);
+            if($ret->count() == 0) {
+                break;
+            }
             $feeds = $feeds->merge($ret);
             $remaining -= $ret->count();
             $time = $ret->last()->created_at;
@@ -147,17 +154,19 @@ abstract class ManagerBase
     protected function loadFeed(Authenticatable $actor, Carbon $time, $limit) {
         // fetched from cache
         $ret = get_timeseries($this->key(), $time, $limit);
-        if($ret->count() < $limit) {
-            // fetch the reset from db
-            $dbTime = $ret->count() == 0 ? $time : $ret->timeTo();
-            $dbLimit = $limit - $ret->count();
-            $dbRet = $this->dataSource($dbTime, $dbLimit);
-            $ret = $ret->concat($dbRet);
-            // if there are data returned, we start to warm up cache
-            if(count($dbRet) != 0) {
-                $this->firePreloadEvent($actor, $time);
-            }
+        if($ret->count() >= $limit) {
+            return $ret;
         }
+        // fetch the reset from db
+        $next = $ret->count() == 0 ? $time : $ret->timeTo();
+        $limit = $limit - $ret->count();
+        $dbRet = $this->dataSource($next, $limit);
+        $ret = $ret->concat($dbRet);
+        // if there are data returned, we start to warm up cache
+        if(count($dbRet) != 0) {
+            $this->firePreloadEvent($actor, $time);
+        }
+
         return $ret;
     }
 

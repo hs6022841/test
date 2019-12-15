@@ -7,8 +7,6 @@ use Illuminate\Support\Collection;
 
 class TimeSeriesCollection extends Collection
 {
-
-
     public function __construct($items = [])
     {
         if($items instanceof Collection && $items->first() && $items->first() instanceof Feed) {

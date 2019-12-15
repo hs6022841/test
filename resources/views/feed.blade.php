@@ -4,6 +4,7 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
+            @include('flash-message')
             <div class="card">
                 <div class="card-header row">
                     <div class="col-sm-6">{{  __('Feed') }}</div>
@@ -35,6 +36,10 @@
                             <div class="card-body">
                                 <p class="card-text">{{$feed->comment}}</p>
                                 <small>Posted by {{$feed->user_id}} at {{$feed->created_at}}</small>
+
+                                @if (Route::current()->getName() == 'feed.profile')
+                                <a href="{{ route('feed.delete', $feed->uuid) }}" class="btn btn-danger">DELETE</a>
+                                @endif
                             </div>
                         </div>
                     @endforeach

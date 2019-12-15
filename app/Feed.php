@@ -2,7 +2,10 @@
 
 namespace App;
 
+use App\Lib\TimeSeriesCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class Feed extends Model
@@ -53,5 +56,21 @@ class Feed extends Model
                     ->expire($this->getUserFeedKey($userId), env('CACHE_TTL', 60));
             }
         });
+    }
+
+    /**
+     * Query cache first for feeds, if not found in cache, load from db
+     *
+     * @param $uuid
+     * @return Feed
+     */
+    public static function findFeedByUuid($uuid) {
+
+        $cache = Redis::hGetAll("feed:$uuid");
+        if(!empty($cache)) {
+            return (new Feed())->fill($cache);
+        }
+
+        return Feed::where('uuid', $uuid)->first();
     }
 }

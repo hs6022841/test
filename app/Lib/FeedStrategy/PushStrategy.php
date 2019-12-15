@@ -62,6 +62,14 @@ class PushStrategy extends StrategyBase implements FeedContract {
     /**
      * @inheritDoc
      */
+    public function lookupFeed($uuid): Feed
+    {
+        return feed::findFeedByUuid($uuid);
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function deleteFeed(Feed $feed): void
     {
         $this->buffer->delete($feed->uuid, $feed->created_at);
@@ -99,12 +107,6 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function fanoutFeed(Feed $feed) : void {
         $this->feedSubscriberService->fanoutToFollowers($feed->user_id, function($userIds) use ($feed) {
-            // no need to push to none exist feeds, as they are not active
-            foreach($userIds as $key=>$userId) {
-                $exists = Redis::exists($this->getUserFeedKey($userId));
-                if(!$exists && $userId != $feed->user_id) unset($userIds[$key]);
-            }
-
             $feed->attachToUser($userIds);
         });
     }

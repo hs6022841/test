@@ -37,14 +37,6 @@ class SubscribeToAllTest extends TestCase
         parent::tearDown();
     }
 
-    /**
-     * TODO: not yet decided if I did this correctly or not
-     */
-    public function testSetup()
-    {
-        $this->assertTrue(true);
-    }
-
     public function testLoadFollowers()
     {
         $this->instance->loadFollowers(1);

@@ -6,6 +6,7 @@ use App\Feed;
 use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Collection;
 
 interface FeedContract
 {
@@ -35,6 +36,14 @@ interface FeedContract
      * @param Feed $feed
      */
     public function postFeed(Feed $feed) : void;
+
+    /**
+     * Get detail of a feed
+     *
+     * @param $uuid
+     * @return Feed
+     */
+    public function lookupFeed($uuid) : Feed;
 
     /**
      * Delete a feed

@@ -6,6 +6,7 @@ use App\Feed;
 use App\Lib\FeedStrategy\FeedContract;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use Carbon\Carbon;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Webpatser\Uuid\Uuid;
@@ -88,5 +89,23 @@ class FeedController extends Controller
 
         $this->feedService->postFeed($feed);
         return view('feed-create');
+    }
+
+    /**
+     * Delete a feed
+     *
+     * @param $id
+     * @return mixed
+     */
+    public function destroy($id)
+    {
+        // delete
+        $feed = $this->feedService->lookupFeed($id);
+        if(Auth::id() == $feed->user_id) {
+            $this->feedService->deleteFeed($feed);
+            return response()->redirectTo('feed/profile')->with('success', 'Successfully deleted the feed!');
+        } else {
+            return response()->redirectTo('feed/profile')->with('error', 'Not allowed to delete the feed!');
+        }
     }
 }

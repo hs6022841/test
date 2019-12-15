@@ -136,15 +136,9 @@ class PushStrategyTest extends TestCase
 
     function testFanoutFeed()
     {
-        // user 1 himself as the owner should receive the feed
         Redis::zAdd('users', 1, 1);
-        // user2 does not have a feed cache yet, he should not receive feed
         Redis::zAdd('users', 2, 2);
-        // user3 have a feed cache, he should receive feed
         Redis::zAdd('users', 3, 3);
-
-        $uuid = (string) Uuid::generate(1);
-        Redis::zAdd('user:3:feed', 1000, $uuid);
 
         $feed = factory(Feed::class)->make();
 
@@ -154,9 +148,9 @@ class PushStrategyTest extends TestCase
         $ret = Redis::zRange('user:1:feed', 0, -1);
         $this->assertEquals(1, count($ret), 'owner should receive 1 feed');
         $ret = Redis::zRange('user:2:feed', 0, -1);
-        $this->assertEquals(0, count($ret), 'user 2 should receive 0 feed');
+        $this->assertEquals(1, count($ret), 'user 2 should receive 1 feed');
         $ret = Redis::zRange('user:3:feed', 0, -1);
-        $this->assertEquals(2, count($ret), 'user 3 should receive 2 feed');
+        $this->assertEquals(1, count($ret), 'user 3 should receive 1 feed');
 
     }
 

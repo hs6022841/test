@@ -22,4 +22,5 @@ Auth::routes([
 ]);
 
 Route::get('/feed/profile', 'FeedController@profile')->name('feed.profile');
+Route::get('/feed/delete/{id}', 'FeedController@destroy')->name('feed.delete');
 Route::resource('/feed', 'FeedController');
