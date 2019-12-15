@@ -29,7 +29,7 @@ class ProfileCacheWarmUpListener implements ShouldQueue
      */
     public function handle(ProfileCacheWarmUp $event)
     {
-        $this->feedService->preloadProfile($event->userId, $event->count);
+        $this->feedService->preloadProfile($event->userId, $event->time);
 
         // stop event propagation
         return false;

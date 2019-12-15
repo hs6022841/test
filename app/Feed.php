@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Feed extends Model
 {
+    protected $dateFormat = 'Y-m-d H:i:s.u';
+
     public $timestamps = true;
 
     /**

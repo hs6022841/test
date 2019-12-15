@@ -29,7 +29,7 @@ class FeedCacheWarmUpListener implements ShouldQueue
      */
     public function handle(FeedCacheWarmUp $event)
     {
-        $this->feedService->preloadFeed($event->userId, $event->count);
+        $this->feedService->preloadFeed($event->userId, $event->time);
 
         // stop event propagation
         return false;

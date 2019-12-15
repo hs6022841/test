@@ -6,8 +6,9 @@ use App\Events\FeedCacheWarmUp;
 use App\Events\FeedPosted;
 use App\Events\ProfileCacheWarmUp;
 use App\Feed;
+use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
-use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class PushStrategy extends StrategyBase implements FeedContract {
@@ -16,42 +17,64 @@ class PushStrategy extends StrategyBase implements FeedContract {
     /**
      * @inheritDoc
      */
-    public function fetchFeed($actorUserId, $offset=0, $limit=50) : Paginator
+    public function fetchFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator
     {
-        $uuids = Redis::zRevRangeByScore($this->getUserFeedKey($actorUserId), $offset, $limit);
+        $time = is_null($time) ? Carbon::now() : $time;
 
-        if(empty($uuids)) {
-            $uuids = $this->buffer->get($offset, $limit);
-            if(count($uuids) < $limit) {
-                $uuidsFromDb = $this->loadFeedFromDb($offset, $limit - count($uuids));
-                $uuids = array_merge($uuids, $uuidsFromDb);
+        $paginator = $this->loadFeed(
+            $this->getUserFeedKey($actorUserId),
+            $actorUserId,
+            $time,
+            $limit,
+            FeedCacheWarmUp::class,
+            function($time, $limit) {
+                return $this->loadFeedFromDb($time, $limit);
             }
-            event(new FeedCacheWarmUp($actorUserId, $this->getWarmUpSize($offset, $limit)));
-        }
+        );
 
-        // TODO: should keep on fetching recursively untill meet limit
-        $uuids = $this->findFeedByUuid($uuids);
-        return new Paginator($uuids, $limit, (int) $offset/$limit);
+        // TODO: should keep on fetching recursively untill meet limit/ maybe should put this outside somewhere
+        $uuids = $this->findFeedByUuid($paginator->items());
+        return $paginator;
     }
 
 
     /**
      * @inheritDoc
      */
-    public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : Paginator
+    public function fetchProfileFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator
     {
-        $uuids = Redis::zRevRangeByScore($this->getProfileKey($actorUserId), $offset, $limit);
+        $time = is_null($time) ? Carbon::now() : $time;
 
-        if(empty($uuids)) {
-            // if no cache exists,
-            $offset = 0;
-            $uuids = $this->loadProfileFromDb($actorUserId, $offset, $limit);
-            event(new ProfileCacheWarmUp($actorUserId, $this->getWarmUpSize($offset, $limit)));
+        $paginator = $this->loadFeed(
+            $this->getProfileKey($actorUserId),
+            $actorUserId,
+            $time,
+            $limit,
+            ProfileCacheWarmUp::class,
+            function($time, $limit) use ($actorUserId) {
+                return $this->loadFeedFromDb($time, $limit, $actorUserId);
+            }
+        );
+
+        return $paginator;
+
+    }
+
+    protected function loadFeed($key, $actorUserId, $time, $limit, $event, \Closure $dbQuery) {
+        // fetched from cache
+        $ret = get_timeseries($key, $time, $limit);
+        if($ret->count() < $limit) {
+            // fetch the reset from db
+            $dbTime = $ret->count() == 0 ? $time : Carbon::createFromTimestampMs($ret->toTime());
+            $dbLimit = $limit - $ret->count();
+            $dbRet = $dbQuery($dbTime, $dbLimit);
+            $ret = $ret->concatPaginator($dbRet);
+            // if there are data returned, we start to warm up cache
+            if(count($dbRet) != 0) {
+                event(new $event($actorUserId, $time));
+            }
         }
-        // TODO: should keep on fetching recursively untill meet limit
-        $uuids = $this->findFeedByUuid($uuids);
-        return new Paginator($uuids, $limit, (int) $offset/$limit);
-
+        return $ret;
     }
 
     /**
@@ -60,14 +83,14 @@ class PushStrategy extends StrategyBase implements FeedContract {
      * @param Feed $feed
      */
     public function postFeed(Feed $feed) : void {
+        $time = $feed->created_at;
         Redis::multi()
             ->hMSet($this->getFeedKey($feed->uuid), $feed->toArray())
             ->expire($this->getFeedKey($feed->uuid), $this->cacheTTL)
-            ->zAdd($this->getProfileKey($feed->user_id), Carbon::now()->timestamp, $feed->uuid)
+            ->zAdd($this->getProfileKey($feed->user_id), $time->getPreciseTimestamp(3), $feed->uuid)
             ->expire($this->getProfileKey($feed->user_id), $this->cacheTTL);
 
-        $this->buffer->add($feed->uuid, Carbon::now()->timestamp);
-
+        $this->buffer->add($feed->uuid, $time);
         Redis::exec();
 
         // dispatch the event for feed fanout process
@@ -80,23 +103,60 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function deleteFeed(Feed $feed): void
     {
-        $this->buffer->delete($feed->uuid, Carbon::now()->timestamp);
+        $this->buffer->delete($feed->uuid, $feed->created_at);
     }
 
     /**
      * @inheritDoc
      */
-    public function preloadProfile($userId, $count): void
+    public function preloadProfile($userId, Carbon $time): void
     {
-        // TODO: Query db, build up cache
+        // FIXME: should have a mechanism to decide the preload size,
+        // should probably based on how active the user is or how deep the provided time is
+        // For now, load everything
+        $time = Carbon::now();
+        while(true) {
+            $paginator = $this->loadFeedFromDb($time, 100, $userId);
+            if($paginator->count() == 0) {
+                break;
+            }
+            $time = Carbon::createFromTimestampMs($paginator->toTime());
+            $feeds = $paginator->getMapping();
+            Redis::pipeline(function ($pipe) use ($userId, $feeds) {
+                foreach($feeds as $uuid=>$createdAt) {
+                    // making the score negative so that the timeline is desc
+                    $pipe->zAdd($this->getProfileKey($userId), $createdAt, $uuid)
+                        ->expire($this->getProfileKey($userId), $this->cacheTTL);
+                }
+            });
+        }
+
     }
 
     /**
      * @inheritDoc
      */
-    public function preloadFeed($userId, $count): void
+    public function preloadFeed($userId, Carbon $time): void
     {
-        // TODO: Query db, build up cache
+        // FIXME: should have a mechanism to decide the preload size,
+        // should probably based on how active the user is or how deep the provided time is
+        // For now, load everything
+        $time = Carbon::now();
+        while(true) {
+            $paginator = $this->loadFeedFromDb($time, 100);
+            if($paginator->count() == 0) {
+                break;
+            }
+            $time = Carbon::createFromTimestampMs($paginator->toTime());
+            $feeds = $paginator->getMapping();
+            Redis::pipeline(function ($pipe) use ($userId, $feeds) {
+                foreach($feeds as $uuid=>$createdAt) {
+                    // making the score negative so that the timeline is desc
+                    $pipe->zAdd($this->getUserFeedKey($userId), $createdAt, $uuid)
+                        ->expire($this->getUserFeedKey($userId), $this->cacheTTL);
+                }
+            });
+        }
     }
 
     /**

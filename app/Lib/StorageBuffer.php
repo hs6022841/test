@@ -23,10 +23,11 @@ class StorageBuffer
      * Add into insert buffer
      *
      * @param $id
-     * @param $score
+     * @param Carbon $time
      */
-    public function add($id, $score)
+    public function add($id, Carbon $time)
     {
+        $score = $time->getPreciseTimestamp(3);
         Redis::zAdd($this->insertKey, $score, $id);
     }
 
@@ -35,27 +36,15 @@ class StorageBuffer
      * Also remove it from the insert buffer
      *
      * @param $id
-     * @param $score
-     * @throws \Exception
+     * @param Carbon $time
      */
-    public function delete($id, $score)
+    public function delete($id, Carbon $time)
     {
+        $score = $time->getPreciseTimestamp(3);
         Redis::multi()
             ->zAdd($this->deleteKey, $score, $id)
             ->zRem($this->insertKey, $id)
             ->exec();
-    }
-
-    public function get($offset, $limit)
-    {
-        $pagination = [
-            'limit' => [
-                'offset' => $offset,
-                'count' => $limit,
-            ]
-        ];
-
-        return Redis::zRevRangeByScore($this->insertKey, '+inf' , '-inf', $pagination);
     }
 
     /**
@@ -67,47 +56,32 @@ class StorageBuffer
      */
     public function persist(\Closure $persistInsert, \Closure $persistDelete)
     {
-        $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'))->timestamp;
-        $insertIds = [];
-        $deleteIds = [];
+        $threshold = Carbon::now()->subMinutes(env('BUFFER_PERSIST_TIMEOUT'));
 
-        $offset = 0;
-        $limit = 50;
+        $insertIds = [];
+        $time = $threshold;
+        $limit = 2;
 
         while(true) {
-            $pagination = [
-                'limit' => [
-                    'offset' => $offset,
-                    'count' => $limit,
-                ]
-            ];
-
-            $ret = Redis::zRevRangeByScore($this->insertKey, $threshold, '-inf', $pagination);
-            if(empty($ret)) {
+            $ret = get_timeseries($this->insertKey, $time, $limit);
+            if($ret->count() == 0) {
                 break;
             }
 
-            $offset += $limit;
-            $insertIds = array_merge($insertIds, $ret);
+            $time = Carbon::createFromTimestampMs($ret->toTime());
+            $insertIds = array_merge($insertIds, $ret->items());
         }
 
-        $offset = 0;
-        $limit = 50;
+        $time = $threshold;
+        $limit = 2;
+        $deleteIds = [];
         while(true) {
-            $pagination = [
-                'limit' => [
-                    'offset' => $offset,
-                    'count' => $limit,
-                ]
-            ];
-
-            $ret = Redis::zRevRangeByScore($this->deleteKey, $threshold, '-inf', $pagination);
-            if(empty($ret)) {
+            $ret = get_timeseries($this->deleteKey, $time, $limit);
+            if($ret->count() == 0) {
                 break;
             }
-
-            $offset += $limit;
-            $deleteIds = array_merge($deleteIds, $ret);
+            $time = Carbon::createFromTimestampMs($ret->toTime());
+            $deleteIds = array_merge($deleteIds, $ret->items());
         }
 
         $persistInsert($insertIds);

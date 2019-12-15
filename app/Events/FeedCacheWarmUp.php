@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use Carbon\Carbon;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
@@ -11,17 +12,17 @@ class FeedCacheWarmUp
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $userId;
-    public $count;
+    public $time;
 
     /**
      * Create a new event instance.
      *
      * @param $userId
-     * @param $count
+     * @param $time
      */
-    public function __construct($userId, $count)
+    public function __construct($userId, Carbon $time)
     {
         $this->userId = $userId;
-        $this->count = $count;
+        $this->time = $time;
     }
 }

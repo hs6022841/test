@@ -3,6 +3,8 @@
 namespace App\Lib\Feed;
 
 use App\Feed;
+use App\Lib\TimeSeriesPaginator;
+use Carbon\Carbon;
 use Illuminate\Pagination\Paginator;
 
 interface FeedContract
@@ -11,21 +13,21 @@ interface FeedContract
      * Fetch the feed of a given actor
      *
      * @param $actorUserId
-     * @param $offset
+     * @param $time
      * @param $limit
      * @return Paginator
      */
-    public function fetchFeed($actorUserId, $offset=0, $limit=50) : Paginator;
+    public function fetchFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator;
 
     /**
      * Fetch the profile feed of a given actor
      *
      * @param $actorUserId
-     * @param $offset
+     * @param $time
      * @param $limit
      * @return Paginator
      */
-    public function fetchProfileFeed($actorUserId, $offset=0, $limit=50) : Paginator;
+    public function fetchProfileFeed($actorUserId, Carbon $time = null, $limit = 50) : TimeSeriesPaginator;
 
     /**
      * Post a new feed
@@ -44,16 +46,16 @@ interface FeedContract
     /**
      * Preload profile feed in cache
      * @param $userId
-     * @param $count
+     * @param $time
      */
-    public function preloadProfile($userId, $count) : void;
+    public function preloadProfile($userId, Carbon $time) : void;
 
     /**
      * Preload feed in cache
      * @param $userId
-     * @param $count
+     * @param $time
      */
-    public function preloadFeed($userId, $count) : void;
+    public function preloadFeed($userId, Carbon $time) : void;
 
     /**
      * Push feed to each user's feed
