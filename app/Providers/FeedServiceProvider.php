@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Lib\Feed\FeedContract;
-use App\Lib\Feed\PushStrategy;
+use App\Lib\FeedStrategy\FeedContract;
+use App\Lib\FeedStrategy\PushStrategy;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use App\Lib\FeedSubscriber\SubscribeToAll;
 use Illuminate\Support\ServiceProvider;

@@ -17,17 +17,23 @@ class SubscribeToAll implements FeedSubscriberContract
     }
 
     /**
-     * Initial following list for newly registered users
-     *
      * all users will be following to each other, so no need to set the targetUsers during setup process
      *
-     * @param $actorUserId
-     * @param array $targetUserIds
+     * @inheritDoc
      */
-    public function setup($actorUserId, $targetUserIds = []) : void
+    public function register($actorUserId, $targetUserIds = []) : void
     {
         // using sorted set here so that we can slice the set during the fanout process
         Redis::zAdd($this->key, $actorUserId, $actorUserId);
+    }
+
+
+    /**
+     * @inheritDoc
+     */
+    public function deregister($actorUserId) : void
+    {
+        Redis::zRem($this->key, $actorUserId);
     }
 
     /**
@@ -77,7 +83,6 @@ class SubscribeToAll implements FeedSubscriberContract
     {
         $cursor = 0;
         while(true) {
-            //TODO: user id is not continuous...
             $users = Redis::zRange($this->key, $cursor, $cursor + $pageSize - 1);
             $cursor += $pageSize;
 

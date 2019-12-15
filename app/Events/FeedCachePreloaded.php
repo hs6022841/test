@@ -3,15 +3,16 @@
 namespace App\Events;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
 
-class ProfileCacheWarmUp
+class FeedCachePreloaded
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $userId;
+    public $user;
     public $time;
 
     /**
@@ -20,9 +21,9 @@ class ProfileCacheWarmUp
      * @param $userId
      * @param $time
      */
-    public function __construct($userId, Carbon $time)
+    public function __construct(Authenticatable $user, Carbon $time)
     {
-        $this->userId = $userId;
+        $this->user = $user;
         $this->time = $time;
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Lib\Feed\FeedContract;
+use App\Lib\FeedStrategy\FeedContract;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;

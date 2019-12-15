@@ -2,12 +2,12 @@
 
 namespace App\Listeners;
 
-use App\Events\ProfileCacheWarmUp;
-use App\Lib\Feed\FeedContract;
+use App\Events\FeedCachePreloaded;
+use App\Lib\FeedStrategy\FeedContract;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
-class ProfileCacheWarmUpListener implements ShouldQueue
+class FeedCachePreloadedListener implements ShouldQueue
 {
     protected $feedService;
 
@@ -24,12 +24,12 @@ class ProfileCacheWarmUpListener implements ShouldQueue
     /**
      * Handle the event.
      *
-     * @param ProfileCacheWarmUp $event
+     * @param FeedCachePreloaded $event
      * @return bool
      */
-    public function handle(ProfileCacheWarmUp $event)
+    public function handle(FeedCachePreloaded $event)
     {
-        $this->feedService->preloadProfile($event->userId, $event->time);
+        $this->feedService->preloadFeed($event->user, $event->time);
 
         // stop event propagation
         return false;
@@ -38,12 +38,12 @@ class ProfileCacheWarmUpListener implements ShouldQueue
     /**
      * Handle a job failure.
      *
-     * @param ProfileCacheWarmUp $event
+     * @param FeedCachePreloaded $event
      * @param \Exception $exception
      * @return void
      */
-    public function failed(ProfileCacheWarmUp $event, $exception)
+    public function failed(FeedCachePreloaded $event, $exception)
     {
-        Log::critical("Failed warmining up profile cache, error: " . $exception->getMessage());
+        Log::critical("Failed warmining up feed cache, error: " . $exception->getMessage());
     }
 }

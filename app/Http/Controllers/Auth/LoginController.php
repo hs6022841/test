@@ -8,6 +8,7 @@ use App\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Faker\Factory as Faker;
@@ -25,7 +26,9 @@ class LoginController extends Controller
     |
     */
 
-    use AuthenticatesUsers;
+    use AuthenticatesUsers {
+        logout as public traitLogout;
+    }
 
     protected $feedSubscriberService;
 
@@ -85,11 +88,11 @@ class LoginController extends Controller
 
             event(new Registered($user = $this->create($request->all())));
 
-            // Executing feed setup for newly registered user synchronously
-            $this->feedSubscriberService->setup($user->id);
-
             $this->guard()->login($user);
         }
+
+        // Register user id in cache in order to receive feeds after user logs in
+        $this->feedSubscriberService->register(Auth::id());
         return true;
     }
 
@@ -107,5 +110,11 @@ class LoginController extends Controller
             // dummy data
             'password' => Hash::make(''),
         ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $this->feedSubscriberService->deregister(Auth::id());
+        $this->traitLogout($request);
     }
 }

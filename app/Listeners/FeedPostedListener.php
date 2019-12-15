@@ -4,7 +4,7 @@ namespace App\Listeners;
 
 use App\Events\FeedPosted;
 use App\Feed;
-use App\Lib\Feed\FeedContract;
+use App\Lib\FeedStrategy\FeedContract;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 

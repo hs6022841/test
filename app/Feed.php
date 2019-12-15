@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Redis;
 
 class Feed extends Model
 {
@@ -22,15 +23,6 @@ class Feed extends Model
     protected $hidden = ['id'];
 
     /**
-     * Returns the available keys stored in redis
-     *
-     * @return array
-     */
-    public function props() {
-        return $this->fillable;
-    }
-
-    /**
      * Feed belongs to an user
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -38,5 +30,28 @@ class Feed extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    protected function getUserFeedKey($userId) {
+        return "user:$userId:feed";
+    }
+
+    /**
+     * Prepend this feed into provided users' feed buffer
+     *
+     * @param $userIds
+     */
+    public function attachToUser($userIds)
+    {
+        if(!is_array($userIds)) {
+            $userIds = [$userIds];
+        }
+        Redis::pipeline(function ($pipe) use ($userIds) {
+            foreach($userIds as $userId) {
+                // making the score negative so that the timeline is desc
+                $pipe->zAdd($this->getUserFeedKey($userId), $this->created_at->getPreciseTimestamp(3), $this->uuid)
+                    ->expire($this->getUserFeedKey($userId), env('CACHE_TTL', 60));
+            }
+        });
     }
 }

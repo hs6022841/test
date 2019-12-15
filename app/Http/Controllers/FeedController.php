@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Feed;
-use App\Lib\Feed\FeedContract;
+use App\Lib\FeedStrategy\FeedContract;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -38,7 +38,7 @@ class FeedController extends Controller
         // preload the followers to warm up the cache
         $this->feedSubscriberService->loadFollowers(Auth::id());
 
-        $feeds = $this->feedService->fetchUserFeed(Auth::id());
+        $feeds = $this->feedService->getFeed(Auth::user());
 
         return view('feed', ['feeds' => $feeds]);
     }
@@ -50,7 +50,7 @@ class FeedController extends Controller
      */
     public function profile()
     {
-        $feeds = $this->feedService->fetchProfileFeed(Auth::id());
+        $feeds = $this->feedService->getProfile(Auth::user());
 
         return view('feed', ['feeds' => $feeds]);
     }

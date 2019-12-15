@@ -12,7 +12,14 @@ interface FeedSubscriberContract
      * @param $actorUserId
      * @param array $targetUserIds
      */
-    public function setup($actorUserId, $targetUserIds = []) : void;
+    public function register($actorUserId, $targetUserIds = []) : void;
+
+    /**
+     * Remove an user from the users key
+     *
+     * @param $actorUserId
+     */
+    public function deregister($actorUserId) : void;
 
     /**
      * Follow an user

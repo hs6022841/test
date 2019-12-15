@@ -2,11 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Events\FeedCacheWarmUp;
+use App\Events\FeedCachePreloaded;
 use App\Events\FeedPosted;
-use App\Events\ProfileCacheWarmUp;
+use App\Events\ProfileCachePreloaded;
 use App\Feed;
-use App\Lib\Feed\PushStrategy;
+use App\Lib\FeedStrategy\PushStrategy;
 use App\Lib\FeedSubscriber\SubscribeToAll;
 use App\User;
 use Carbon\Carbon;
@@ -167,7 +167,7 @@ class PushStrategyTest extends TestCase
 
         // Register user 2
         $feedSubscriberService = new SubscribeToAll();
-        $feedSubscriberService->setup(2);
+        $feedSubscriberService->register(2);
 
         $createdAt = Carbon::now()->subDay();
 
@@ -203,37 +203,37 @@ class PushStrategyTest extends TestCase
         }
 
         // first page
-        $ret = $this->instance->fetchUserFeed(2, Carbon::now(), 2);
+        $ret = $this->instance->getFeed($this->user2, Carbon::now(), 2);
         $this->assertEquals($feedsInCache[0]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[1]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[1]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
 
         // second page
-        $ret = $this->instance->fetchUserFeed(2, $ret->timeTo(), 2);
+        $ret = $this->instance->getFeed($this->user2, $ret->timeTo(), 2);
         $this->assertEquals($feedsInCache[2]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[3]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[3]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
 
         // third page
-        $ret = $this->instance->fetchUserFeed(2, $ret->timeTo(), 2);
+        $ret = $this->instance->getFeed($this->user2, $ret->timeTo(), 2);
         $this->assertEquals($feedsInCache[4]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[0]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[0]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(FeedCacheWarmUp::class);
+        Event::assertDispatched(FeedCachePreloaded::class);
 
         // forth page
-        $ret = $this->instance->fetchUserFeed(2, $ret->timeTo(), 2);
+        $ret = $this->instance->getFeed($this->user2, $ret->timeTo(), 2);
         $this->assertEquals($feedsInDb[1]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[2]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[2]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(FeedCacheWarmUp::class);
+        Event::assertDispatched(FeedCachePreloaded::class);
 
         // fifth page
-        $ret = $this->instance->fetchUserFeed(2, $ret->timeTo(), 2);
+        $ret = $this->instance->getFeed($this->user2, $ret->timeTo(), 2);
         $this->assertEquals($feedsInDb[3]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[4]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[4]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(FeedCacheWarmUp::class);
+        Event::assertDispatched(FeedCachePreloaded::class);
     }
 
     function testFetchUserFeedWithDelete()
@@ -270,19 +270,19 @@ class PushStrategyTest extends TestCase
         $this->instance->persist();
 
         // first page
-        $ret = $this->instance->fetchUserFeed(1, Carbon::now(), 6);
+        $ret = $this->instance->getFeed($this->user1, Carbon::now(), 6);
         $this->assertEquals($feedsInCache[0]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[1]->uuid, $ret->items()[5]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[1]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
         $this->assertEquals(6, count($ret->items()), 'should fetch 6 items');
 
         // second page
-        $ret = $this->instance->fetchUserFeed(1, $ret->timeTo(), 6);
+        $ret = $this->instance->getFeed($this->user1, $ret->timeTo(), 6);
         $this->assertEquals($feedsInDb[2]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[4]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[4]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
         $this->assertEquals(2, count($ret->items()), 'should fetch 2 items');
-        Event::assertDispatched(FeedCacheWarmUp::class);
+        Event::assertDispatched(FeedCachePreloaded::class);
     }
 
     function testFetchProfileFeed()
@@ -300,7 +300,6 @@ class PushStrategyTest extends TestCase
             $feedsInCache[] = $feed;
         }
 
-
         // user 1 had 5 feed inside database which is not preload into cache yet
         $feedsInDb = [];
         for($i = 0; $i < 5; $i++) {
@@ -311,37 +310,37 @@ class PushStrategyTest extends TestCase
         }
 
         // first page
-        $ret = $this->instance->fetchProfileFeed(1, Carbon::now(), 2);
+        $ret = $this->instance->getProfile($this->user1, Carbon::now(), 2);
         $this->assertEquals($feedsInCache[0]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[1]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[1]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
 
         // second page
-        $ret = $this->instance->fetchProfileFeed(1, $ret->timeTo(), 2);
+        $ret = $this->instance->getProfile($this->user1, $ret->timeTo(), 2);
         $this->assertEquals($feedsInCache[2]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[3]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInCache[3]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
 
         // third page
-        $ret = $this->instance->fetchProfileFeed(1, $ret->timeTo(), 2);
+        $ret = $this->instance->getProfile($this->user1, $ret->timeTo(), 2);
         $this->assertEquals($feedsInCache[4]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[0]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[0]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(ProfileCacheWarmUp::class);
+        Event::assertDispatched(ProfileCachePreloaded::class);
 
         // forth page
-        $ret = $this->instance->fetchProfileFeed(1, $ret->timeTo(), 2);
+        $ret = $this->instance->getProfile($this->user1, $ret->timeTo(), 2);
         $this->assertEquals($feedsInDb[1]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[2]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[2]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(ProfileCacheWarmUp::class);
+        Event::assertDispatched(ProfileCachePreloaded::class);
 
         // fifth page
-        $ret = $this->instance->fetchProfileFeed(1, $ret->timeTo(), 2);
+        $ret = $this->instance->getProfile($this->user1, $ret->timeTo(), 2);
         $this->assertEquals($feedsInDb[3]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[4]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in db');
         $this->assertEquals($feedsInDb[4]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
-        Event::assertDispatched(ProfileCacheWarmUp::class);
+        Event::assertDispatched(ProfileCachePreloaded::class);
 
     }
 
@@ -379,19 +378,19 @@ class PushStrategyTest extends TestCase
         $this->instance->persist();
 
         // first page
-        $ret = $this->instance->fetchProfileFeed(1, Carbon::now(), 6);
+        $ret = $this->instance->getProfile($this->user1, Carbon::now(), 6);
         $this->assertEquals($feedsInCache[0]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[1]->uuid, $ret->items()[5]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[1]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
         $this->assertEquals(6, count($ret->items()), 'should fetch 6 items');
 
         // second page
-        $ret = $this->instance->fetchProfileFeed(1, $ret->timeTo(), 6);
+        $ret = $this->instance->getProfile($this->user1, $ret->timeTo(), 6);
         $this->assertEquals($feedsInDb[2]->uuid, $ret->items()[0]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[4]->uuid, $ret->items()[1]->uuid, 'items in paginator have to match with whats being created in cache');
         $this->assertEquals($feedsInDb[4]->created_at->timestamp, $ret->timeTo()->timestamp, 'next time have to match');
         $this->assertEquals(2, count($ret->items()), 'should fetch 2 items');
-        Event::assertDispatched(ProfileCacheWarmUp::class);
+        Event::assertDispatched(ProfileCachePreloaded::class);
     }
 
 
@@ -420,7 +419,7 @@ class PushStrategyTest extends TestCase
         }
 
         $now = Carbon::now();
-        $this->instance->preloadProfile(1, $now);
+        $this->instance->preloadProfile($this->user1, $now);
 
         // in cache feed should still be there
         foreach($feedsInCache as $key=>$feed) {
@@ -437,7 +436,7 @@ class PushStrategyTest extends TestCase
     {
         // Register user 2
         $feedSubscriberService = new SubscribeToAll();
-        $feedSubscriberService->setup(2);
+        $feedSubscriberService->register(2);
 
         $createdAt = Carbon::now()->subDay();
 
@@ -473,7 +472,7 @@ class PushStrategyTest extends TestCase
         }
 
         $now = Carbon::now();
-        $this->instance->preloadFeed(2, $now);
+        $this->instance->preloadFeed($this->user2, $now);
 
         // in cache feed should still be there
         foreach($feedsInCache as $feed) {

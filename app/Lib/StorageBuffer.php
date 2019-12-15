@@ -12,11 +12,13 @@ class StorageBuffer
     protected $bufferTimeout;
     protected $insertKey;
     protected $deleteKey;
+    protected $feedKey;
 
     public function __construct()
     {
         $this->insertKey = 'buffer:insert';
         $this->deleteKey = 'buffer:delete';
+        $this->feedKey = 'feed:';
         $this->bufferTimeout = env('BUFFER_PERSIST_TIMEOUT', 10);
     }
 
@@ -45,7 +47,7 @@ class StorageBuffer
         Redis::multi()
             ->zAdd($this->deleteKey, $score, $id)
             ->zRem($this->insertKey, $id)
-            ->del("feed:$id")
+            ->del($this->feedKey . $id)
             ->exec();
     }
 
@@ -62,7 +64,7 @@ class StorageBuffer
 
         $insertIds = new Collection();
         $time = $threshold;
-        $limit = 2;
+        $limit = 50;
 
         while(true) {
             $ret = get_timeseries($this->insertKey, $time, $limit);
@@ -75,7 +77,7 @@ class StorageBuffer
         }
 
         $time = $threshold;
-        $limit = 2;
+        $limit = 50;
         $deleteIds = new Collection();
         while(true) {
             $ret = get_timeseries($this->deleteKey, $time, $limit);
