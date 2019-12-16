@@ -69,8 +69,9 @@ interface FeedContract
      * Push feed to each user's feed
      *
      * @param Feed $feed
+     * @param bool $isInsert
      */
-    public function fanoutFeed(Feed $feed) : void;
+    public function fanoutFeed(Feed $feed, $isInsert = true) : void;
 
 
     /**

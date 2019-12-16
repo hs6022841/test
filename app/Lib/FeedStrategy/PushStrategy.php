@@ -50,7 +50,7 @@ class PushStrategy extends StrategyBase implements FeedContract {
 
         // dispatch the event for feed fanout process
         // Note that passing an uncommitted feed across event is going to hang the process
-        event(new FeedPosted($feed->toArray()));
+        event(new FeedPosted($feed->toArray(), true));
     }
 
     /**
@@ -66,7 +66,17 @@ class PushStrategy extends StrategyBase implements FeedContract {
      */
     public function deleteFeed(Feed $feed): void
     {
+        Redis::multi()
+            ->del($this->getFeedKey($feed->uuid))
+            ->zRem($this->getProfileKey($feed->user_id), $feed->uuid)
+            ->expire($this->getProfileKey($feed->user_id), $this->cacheTTL);
+
         $this->buffer->delete($feed->uuid, $feed->created_at);
+        Redis::exec();
+
+        // dispatch the event for feed fanout process
+        // Note that passing an uncommitted feed across event is going to hang the process
+        event(new FeedPosted($feed->toArray(), false));
     }
 
     /**
@@ -99,9 +109,13 @@ class PushStrategy extends StrategyBase implements FeedContract {
     /**
      * @inheritDoc
      */
-    public function fanoutFeed(Feed $feed) : void {
-        $this->feedSubscriberService->fanoutToFollowers($feed->user_id, function($userIds) use ($feed) {
-            $feed->attachToUser($userIds);
+    public function fanoutFeed(Feed $feed, $isInsert = true) : void {
+        $this->feedSubscriberService->fanoutToFollowers($feed->user_id, function($userIds) use ($feed, $isInsert) {
+            if($isInsert) {
+                $feed->attachToUser($userIds);
+            } else {
+                $feed->detachFromUser($userIds);
+            }
         });
     }
 }

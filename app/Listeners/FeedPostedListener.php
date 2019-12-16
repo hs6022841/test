@@ -31,7 +31,7 @@ class FeedPostedListener implements ShouldQueue
     public function handle(FeedPosted $event)
     {
         $feed = (new Feed())->fill($event->feed);
-        $this->feedService->fanoutFeed($feed);
+        $this->feedService->fanoutFeed($feed, $event->isInsert);
 
         // stop event propagation
         return false;

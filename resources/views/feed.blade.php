@@ -31,6 +31,8 @@
                         </div>
                     @endif
 
+                    <p>Note: remember to remove the time=xxx url param if you are not seeing newer feeds, it's limiting the timeline range </p>
+                    <p>Can simply just click the 'First Page' button below, it should update the time</p>
                     @foreach($feeds as $feed)
                         <div class="card" style="width: 100%;">
                             <div class="card-body">

@@ -5,7 +5,6 @@ namespace App\Lib;
 
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class StorageBuffer
@@ -15,6 +14,7 @@ class StorageBuffer
     protected $deleteKey;
     protected $feedKey;
     protected $cacheTTL;
+    protected $persistBatchSize = 50;
 
     public function __construct()
     {
@@ -48,16 +48,14 @@ class StorageBuffer
     public function delete($id, Carbon $time)
     {
         $score = $time->getPreciseTimestamp(3);
-        Redis::multi()
-            ->del($this->feedKey . $id)
-            ->zAdd($this->deleteKey, $score, $id)
-            ->expire($this->deleteKey, $this->cacheTTL)
-            ->exec();
         Redis::zRem($this->insertKey, $id);
+        Redis::zAdd($this->deleteKey, $score, $id);
+        Redis::expire($this->insertKey, $this->cacheTTL);
+        Redis::expire($this->deleteKey, $this->cacheTTL);
     }
 
     /**
-     * Get the feeds inside buffer
+     * Get the inserted feed
      *
      * @param Carbon $time
      * @param $limit
@@ -66,6 +64,16 @@ class StorageBuffer
     public function get(Carbon $time, $limit)
     {
         return get_timeseries($this->insertKey, $time, $limit);
+    }
+
+    /**
+     * Get the deleted feed
+     *
+     * @return TimeSeriesCollection
+     */
+    public function getDeletedIds()
+    {
+        return Redis::zRange($this->deleteKey, 0, -1);
     }
 
     /**
@@ -81,7 +89,7 @@ class StorageBuffer
 
         $insertIds = new Collection();
         $time = $threshold;
-        $limit = 50;
+        $limit = $this->persistBatchSize;
 
         while(true) {
             $ret = get_timeseries($this->insertKey, $time, $limit);
@@ -93,9 +101,12 @@ class StorageBuffer
             $insertIds = $ret->uuids()->merge($insertIds);
         }
 
-        $time = $threshold;
-        $limit = 50;
+        $persistInsert($insertIds);
+        Redis::zRem($this->insertKey, ...$insertIds);
+
         $deleteIds = new Collection();
+        $time = $threshold;
+        $limit = $this->persistBatchSize;
         while(true) {
             $ret = get_timeseries($this->deleteKey, $time, $limit);
             if($ret->count() == 0) {
@@ -105,10 +116,10 @@ class StorageBuffer
             $deleteIds = $ret->uuids()->merge($deleteIds);
         }
 
-        $persistInsert($insertIds);
         $persistDelete($deleteIds);
-
-        Redis::zRem($this->insertKey, ...$insertIds);
         Redis::zRem($this->deleteKey, ...$deleteIds);
+        foreach($deleteIds as $deleteId) {
+            Redis::del($this->feedKey.$deleteId);
+        }
     }
 }

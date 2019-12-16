@@ -7,7 +7,6 @@ use App\Events\FeedCachePreloaded;
 use App\Lib\TimeSeriesCollection;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Collection;
 
 class UserFeedManager extends ManagerBase
 {
@@ -42,19 +41,20 @@ class UserFeedManager extends ManagerBase
      * @param Authenticatable $actor
      * @param Carbon $time
      * @param $limit
-     * @return TimeSeriesCollection|Collection
+     * @return TimeSeriesCollection
      */
-    protected function loadFeed(Authenticatable $actor, Carbon $time, $limit) {
+    protected function loadCombinedFeed(Authenticatable $actor, Carbon $time, $limit) {
         // fetch from the buffer
         $ret = $this->buffer->get($time, $limit);
         if($ret->count() >= $limit) {
             return $ret;
         }
 
-        // fetched from cache
+        // fetched from cache and db
         $limit = $limit - $ret->count();
         $next = $ret->count() == 0 ? $time : $ret->timeTo();
-        $ret1 = parent::loadFeed($actor, $next, $limit);
+
+        $ret1 = parent::loadCombinedFeed($actor, $next, $limit);
         $ret = $ret->concat($ret1);
         return $ret;
     }

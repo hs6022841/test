@@ -2,10 +2,7 @@
 
 namespace App;
 
-use App\Lib\TimeSeriesCollection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class Feed extends Model
@@ -40,7 +37,7 @@ class Feed extends Model
     }
 
     /**
-     * Prepend this feed into provided users' feed buffer
+     * Prepend this feed into provided users' feed
      *
      * @param $userIds
      */
@@ -51,8 +48,24 @@ class Feed extends Model
         }
         Redis::pipeline(function ($pipe) use ($userIds) {
             foreach($userIds as $userId) {
-                // making the score negative so that the timeline is desc
                 $pipe->zAdd($this->getUserFeedKey($userId), $this->created_at->getPreciseTimestamp(3), $this->uuid)
+                    ->expire($this->getUserFeedKey($userId), env('CACHE_TTL', 60));
+            }
+        });
+    }
+    /**
+     * Remove this feed from provided users' feed
+     *
+     * @param $userIds
+     */
+    public function detachFromUser($userIds)
+    {
+        if(!is_array($userIds)) {
+            $userIds = [$userIds];
+        }
+        Redis::pipeline(function ($pipe) use ($userIds) {
+            foreach($userIds as $userId) {
+                $pipe->zRem($this->getUserFeedKey($userId), $this->uuid)
                     ->expire($this->getUserFeedKey($userId), env('CACHE_TTL', 60));
             }
         });

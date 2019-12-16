@@ -4,7 +4,6 @@
 namespace App\Lib\FeedSubscriber;
 
 
-use App\User;
 use Illuminate\Support\Facades\Redis;
 
 class SubscribeToAll implements FeedSubscriberContract

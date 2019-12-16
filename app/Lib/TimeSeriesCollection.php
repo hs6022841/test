@@ -20,10 +20,6 @@ class TimeSeriesCollection extends Collection
         parent::__construct($items);
     }
 
-    public function getLimit() {
-        return $this->limit;
-    }
-
     public function timeFrom() {
         return Carbon::createFromTimestampMs($this->first());
     }

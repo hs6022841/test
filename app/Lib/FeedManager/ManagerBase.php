@@ -77,22 +77,18 @@ abstract class ManagerBase
         $feeds = new Collection();
         $remaining = $limit;
         while($remaining > 0) {
-            // factor is a multiplier so that when $remaining is small enough,
-            // we will fetch $factor * $remaining $items, then take the first $remaining items
+            // for any small size queries, we fetch a bit more to save round trips
             // to save bunch of potential round trips of db/redis call
-            $factor = $remaining <= 10 ? 10 : 1;
-            $ret = $this->loadFeed($this->actor, $time, $factor * $remaining);
+            $batchedLimit = $remaining <= 10 ? 10 : $remaining;
+            $ret = $this->loadCombinedFeed($this->actor, $time,  $batchedLimit);
             if($ret->count() == 0) {
                 break;
             }
-            $ret = $this->findFeedByUuid($ret);
+            $time = Carbon::createFromTimestampMs($ret->last());
             $ret = $ret->slice(0, $remaining);
-            if($ret->count() == 0) {
-                break;
-            }
+            $ret = $this->findFeedByUuid($ret);
             $feeds = $feeds->merge($ret);
             $remaining -= $ret->count();
-            $time = $ret->last()->created_at;
         }
         return new TimeSeriesPaginator($feeds, $limit);
     }
@@ -125,8 +121,10 @@ abstract class ManagerBase
 
     protected function loadFeedFromDb(Carbon $time, $limit, $userId = null) {
         DB::enableQueryLog();
+        $deleted = $this->buffer->getDeletedIds();
         $feeds = Feed::select('uuid', 'created_at')
-            ->where('created_at', '<', $time);
+            ->where('created_at', '<', $time)
+            ->whereNotIn('uuid', $deleted);
         if(!is_null($userId)) {
             $feeds = $feeds->where('user_id', $userId);
         }
@@ -150,7 +148,7 @@ abstract class ManagerBase
      * @param $limit
      * @return TimeSeriesCollection|Collection
      */
-    protected function loadFeed(Authenticatable $actor, Carbon $time, $limit) {
+    protected function loadCombinedFeed(Authenticatable $actor, Carbon $time, $limit) {
         // fetched from cache
         $ret = get_timeseries($this->key(), $time, $limit);
         if($ret->count() >= $limit) {
@@ -160,6 +158,7 @@ abstract class ManagerBase
         $next = $ret->count() == 0 ? $time : $ret->timeTo();
         $limit = $limit - $ret->count();
         $dbRet = $this->dataSource($next, $limit);
+
         $ret = $ret->concat($dbRet);
         // if there are data returned, we start to warm up cache
         if(count($dbRet) != 0) {

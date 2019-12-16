@@ -4,16 +4,10 @@
 namespace App\Lib\FeedStrategy;
 
 
-use App\Events\FeedCachePreloaded;
-use App\Events\ProfileCachePreloaded;
 use App\Feed;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use App\Lib\StorageBuffer;
-use App\Lib\TimeSeriesCollection;
-use Carbon\Carbon;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
