@@ -25,7 +25,7 @@ abstract class ManagerBase
     {
         $this->cacheTTL = env('CACHE_TTL', 60);
         $this->actor = $actor;
-        $this->buffer = new StorageBuffer();
+        $this->buffer = new StorageBuffer('feed');
     }
 
     /**

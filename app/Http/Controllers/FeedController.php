@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Feed;
 use App\Lib\FeedStrategy\FeedContract;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
+use App\Lib\LikeManager;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,7 @@ class FeedController extends Controller
 {
     protected $feedService;
     protected $feedSubscriberService;
+    protected $likeManager;
     protected $defaultPageSize = 10;
 
     /**
@@ -24,9 +26,10 @@ class FeedController extends Controller
      */
     public function __construct(FeedContract $feedService, FeedSubscriberContract $feedSubscriberService)
     {
+        $this->middleware('auth');
         $this->feedService = $feedService;
         $this->feedSubscriberService = $feedSubscriberService;
-        $this->middleware('auth');
+        $this->likeManager = new LikeManager();
     }
 
     /**
@@ -42,8 +45,8 @@ class FeedController extends Controller
 
         $time=$request->get('time') ? Carbon::createFromTimestampMs($request->get('time')) : Carbon::now();
         $feeds = $this->feedService->getFeed(Auth::user(), $time, $this->defaultPageSize);
-
-        return view('feed', ['feeds' => $feeds, 'next' => $feeds->nextPageUrl()]);
+        $likes = $this->likeManager->get(Auth::user(), $feeds);
+        return view('feed', ['feeds' => $feeds, 'likes' => $likes, 'next' => $feeds->nextPageUrl()]);
     }
 
     /**
@@ -93,6 +96,17 @@ class FeedController extends Controller
 
         $this->feedService->postFeed($feed);
         return view('feed-create');
+    }
+
+    public function like($id)
+    {
+        // delete
+        if(Auth::check()) {
+            $this->likeManager->add(Auth::user(), $id);
+            return response()->redirectTo('feed')->with('success', 'Successfully liked the feed!');
+        } else {
+            return response()->redirectTo('feed')->with('error', 'Not allowed to like the feed!');
+        }
     }
 
     /**

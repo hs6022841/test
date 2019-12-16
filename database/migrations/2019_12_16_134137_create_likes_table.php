@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateFeedsTable extends Migration
+class CreateLikesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,18 +13,19 @@ class CreateFeedsTable extends Migration
      */
     public function up()
     {
-        Schema::create('feeds', function (Blueprint $table) {
-            $table->string('uuid', 36)->primary();
+        Schema::create('likes', function (Blueprint $table) {
+            $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
-            $table->text('comment');
-            // millisecond precision
-            $table->timestamps(3);
+            $table->string('feed_uuid', 36);
 
             $table->foreign('user_id')
                 ->references('id')->on('users')
                 ->onDelete('cascade');
 
-            $table->index('created_at');
+            $table->foreign('feed_uuid')
+                ->references('uuid')->on('feeds')
+                ->onDelete('cascade');
+            $table->unique(['user_id', 'feed_uuid']);
         });
     }
 
@@ -35,6 +36,6 @@ class CreateFeedsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('feeds');
+        Schema::dropIfExists('likes');
     }
 }

@@ -19,7 +19,7 @@ class StorageBufferTest extends TestCase
     {
         putenv("BUFFER_PERSIST_TIMEOUT=60");
 
-        $this->instance = new StorageBuffer();
+        $this->instance = new StorageBuffer('feed');
         parent::setUp();
     }
 

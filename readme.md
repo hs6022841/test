@@ -75,6 +75,8 @@ this user's profile feed will be updated synchronously when the feed is being cr
     - `ManagerBase` - logic to load feed from database/cache/buffer 
     - `ProfileFeedManager` -  logic to load feed for profile feed
     - `UserFeedManager` - logic to load feed for user feeds
+- **LikeManager**
+    Manages add, get, and persist of likes 
 - **StorageBuffer**
     Storage buffer logic to add or delete a feed, as well as selecting feeds eligible to be persisted
 - **TimeSeriesCollection** 

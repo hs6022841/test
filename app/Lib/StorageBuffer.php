@@ -16,10 +16,10 @@ class StorageBuffer
     protected $cacheTTL;
     protected $persistBatchSize = 50;
 
-    public function __construct()
+    public function __construct($key = '')
     {
-        $this->insertKey = 'buffer:insert';
-        $this->deleteKey = 'buffer:delete';
+        $this->insertKey = 'buffer:' . (empty($key) ? '' : ($key . ':')) . 'insert';
+        $this->deleteKey = 'buffer:' . (empty($key) ? '' : ($key . ':')) . 'delete';
         $this->feedKey = 'feed:';
         $this->bufferTimeout = env('BUFFER_PERSIST_TIMEOUT', 10);
         $this->cacheTTL = env('CACHE_TTL', 60);
@@ -83,7 +83,7 @@ class StorageBuffer
      * @param \Closure $persistInsert
      * @param \Closure $persistDelete
      */
-    public function persist(\Closure $persistInsert, \Closure $persistDelete)
+    public function persist(\Closure $persistInsert, \Closure $persistDelete = null)
     {
         $threshold = Carbon::now()->subSeconds(env('BUFFER_PERSIST_TIMEOUT'));
 
@@ -104,22 +104,24 @@ class StorageBuffer
         $persistInsert($insertIds);
         Redis::zRem($this->insertKey, ...$insertIds);
 
-        $deleteIds = new Collection();
-        $time = $threshold;
-        $limit = $this->persistBatchSize;
-        while(true) {
-            $ret = get_timeseries($this->deleteKey, $time, $limit);
-            if($ret->count() == 0) {
-                break;
+        if($persistDelete instanceof \Closure) {
+            $deleteIds = new Collection();
+            $time = $threshold;
+            $limit = $this->persistBatchSize;
+            while(true) {
+                $ret = get_timeseries($this->deleteKey, $time, $limit);
+                if($ret->count() == 0) {
+                    break;
+                }
+                $time = $ret->timeTo();
+                $deleteIds = $ret->uuids()->merge($deleteIds);
             }
-            $time = $ret->timeTo();
-            $deleteIds = $ret->uuids()->merge($deleteIds);
-        }
 
-        $persistDelete($deleteIds);
-        Redis::zRem($this->deleteKey, ...$deleteIds);
-        foreach($deleteIds as $deleteId) {
-            Redis::del($this->feedKey.$deleteId);
+            $persistDelete($deleteIds);
+            Redis::zRem($this->deleteKey, ...$deleteIds);
+            foreach($deleteIds as $deleteId) {
+                Redis::del($this->feedKey.$deleteId);
+            }
         }
     }
 }

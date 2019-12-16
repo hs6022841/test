@@ -3,13 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Lib\FeedStrategy\FeedContract;
-use Carbon\Carbon;
+use App\Lib\LikeManager;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class PersistBuffer extends Command
 {
     protected $feedService;
+    protected $likeManager;
     /**
      * The name and signature of the console command.
      *
@@ -32,6 +32,7 @@ class PersistBuffer extends Command
     public function __construct(FeedContract $feedContract)
     {
         $this->feedService = $feedContract;
+        $this->likeManager = new LikeManager();
         parent::__construct();
     }
 
@@ -43,5 +44,6 @@ class PersistBuffer extends Command
     public function handle()
     {
         $this->feedService->persist();
+        $this->likeManager->persist();
     }
 }

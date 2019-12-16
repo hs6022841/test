@@ -86,6 +86,14 @@ class TimeSeriesPaginator extends Paginator
     }
 
     /**
+     * Get the items as collection
+     */
+    public function getItems()
+    {
+        return $this->items;
+    }
+
+    /**
      * Get the URL for the next page.
      *
      * @return string|null

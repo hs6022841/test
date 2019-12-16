@@ -20,8 +20,6 @@ class Feed extends Model
         'user_id', 'uuid', 'comment', 'created_at', 'updated_at'
     ];
 
-    protected $hidden = ['id'];
-
     /**
      * Feed belongs to an user
      *

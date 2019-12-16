@@ -41,6 +41,12 @@
 
                                 @if (Route::current()->getName() == 'feed.profile')
                                 <a href="{{ route('feed.delete', $feed->uuid) }}" class="btn btn-danger">DELETE</a>
+                                @elseif (Route::current()->getName() == 'feed.index')
+                                    @if($likes[$feed->uuid] > 0)
+                                        <button class="btn btn-disabled">LIKED</button>
+                                    @else
+                                        <a href="{{ route('feed.like', $feed->uuid) }}" class="btn btn-warning">LIKE</a>
+                                    @endif
                                 @endif
                             </div>
                         </div>

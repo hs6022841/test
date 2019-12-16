@@ -13,10 +13,8 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
-use Webpatser\Uuid\Uuid;
 
 class PushStrategyTest extends TestCase
 {

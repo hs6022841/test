@@ -22,5 +22,7 @@ Auth::routes([
 ]);
 
 Route::get('/feed/profile', 'FeedController@profile')->name('feed.profile');
+// all using get for easier testing
+Route::get('/feed/like/{id}', 'FeedController@like')->name('feed.like');
 Route::get('/feed/delete/{id}', 'FeedController@destroy')->name('feed.delete');
 Route::resource('/feed', 'FeedController');

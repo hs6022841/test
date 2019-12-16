@@ -21,7 +21,7 @@ abstract class StrategyBase
     public function __construct(FeedSubscriberContract $feedSubscriberService)
     {
         $this->cacheTTL = env('CACHE_TTL', 60);
-        $this->buffer = new StorageBuffer();
+        $this->buffer = new StorageBuffer('feed');
         $this->feedSubscriberService = $feedSubscriberService;
     }
 
@@ -62,6 +62,4 @@ abstract class StrategyBase
 
         Log::info("Deleted " . $uuids->count() . " feeds from database");
     }
-
-
 }
