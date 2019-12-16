@@ -37,13 +37,20 @@ class SubscribeToAllTest extends TestCase
         parent::tearDown();
     }
 
-    public function testLoadFollowers()
+    public function testLoginLogout()
     {
-        $this->instance->loadFollowers(1);
+        $this->instance->register(1);
         $users = Redis::zRange($this->key, 0, -1);
+        $this->assertEquals(1, $users[0], 'User id 1 should being registered');
 
-        $this->assertEquals(1, $users[0], 'User id 1 has to exist in cache');
-        $this->assertEquals(2, $users[1], 'User id 2 has to exist in cache');
+        $this->instance->register(2);
+        $users = Redis::zRange($this->key, 0, -1);
+        $this->assertEquals(2, $users[1], 'User id 2 should being registered');
+
+        $this->instance->deregister(2);
+        $users = Redis::zRange($this->key, 0, -1);
+        $this->assertEquals(1, count($users), 'should have only 1 user left in the list');
+        $this->assertEquals(1, $users[0], 'user 1 is the only one left');
     }
 
     public function testFanoutToFollowers()

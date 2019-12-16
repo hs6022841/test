@@ -43,6 +43,10 @@
                             </div>
                         </div>
                     @endforeach
+
+                    <br>
+                    <a href="?time={{\Carbon\Carbon::now()->timestamp * 1000}}" class="btn btn-primary">First Page</a>
+                    <a href="{{$next}}" class="btn btn-primary">Next Page</a>
                 </div>
             </div>
         </div>

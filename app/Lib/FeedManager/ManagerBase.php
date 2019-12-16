@@ -4,8 +4,6 @@
 namespace App\Lib\FeedManager;
 
 
-use App\Events\FeedCachePreloaded;
-use App\Events\ProfileCachePreloaded;
 use App\Feed;
 use App\Lib\StorageBuffer;
 use App\Lib\TimeSeriesCollection;
@@ -13,6 +11,7 @@ use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
@@ -125,7 +124,7 @@ abstract class ManagerBase
     }
 
     protected function loadFeedFromDb(Carbon $time, $limit, $userId = null) {
-//        DB::enableQueryLog();
+        DB::enableQueryLog();
         $feeds = Feed::select('uuid', 'created_at')
             ->where('created_at', '<', $time);
         if(!is_null($userId)) {
@@ -134,10 +133,10 @@ abstract class ManagerBase
         $feeds = $feeds->OrderBy('created_at', 'desc')
             ->limit($limit)
             ->get();
-//        Log::info("Fetching feeds from database, time: $time, limit: $limit, user_id: $userId");
-//        foreach(DB::getQueryLog() as $log) {
-//            Log::info("Query: " . $log['query'] . ", completed in " . $log['time']);
-//        }
+        Log::info("Fetching feeds from database, time: $time, limit: $limit, user_id: $userId");
+        foreach(DB::getQueryLog() as $log) {
+            Log::info("Query: " . $log['query'] . ", completed in " . $log['time']);
+        }
         return new TimeSeriesCollection($feeds);
     }
 

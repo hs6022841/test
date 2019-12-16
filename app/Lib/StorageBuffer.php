@@ -5,6 +5,7 @@ namespace App\Lib;
 
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class StorageBuffer
@@ -13,6 +14,7 @@ class StorageBuffer
     protected $insertKey;
     protected $deleteKey;
     protected $feedKey;
+    protected $cacheTTL;
 
     public function __construct()
     {
@@ -20,6 +22,7 @@ class StorageBuffer
         $this->deleteKey = 'buffer:delete';
         $this->feedKey = 'feed:';
         $this->bufferTimeout = env('BUFFER_PERSIST_TIMEOUT', 10);
+        $this->cacheTTL = env('CACHE_TTL', 60);
     }
 
     /**
@@ -32,6 +35,7 @@ class StorageBuffer
     {
         $score = $time->getPreciseTimestamp(3);
         Redis::zAdd($this->insertKey, $score, $id);
+        Redis::expire($this->insertKey, $this->cacheTTL);
     }
 
     /**
@@ -45,10 +49,11 @@ class StorageBuffer
     {
         $score = $time->getPreciseTimestamp(3);
         Redis::multi()
-            ->zAdd($this->deleteKey, $score, $id)
-            ->zRem($this->insertKey, $id)
             ->del($this->feedKey . $id)
+            ->zAdd($this->deleteKey, $score, $id)
+            ->expire($this->deleteKey, $this->cacheTTL)
             ->exec();
+        Redis::zRem($this->insertKey, $id);
     }
 
     /**

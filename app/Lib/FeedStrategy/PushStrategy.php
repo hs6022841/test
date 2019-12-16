@@ -2,19 +2,13 @@
 
 namespace App\Lib\FeedStrategy;
 
-use App\Events\FeedCachePreloaded;
 use App\Events\FeedPosted;
-use App\Events\ProfileCachePreloaded;
 use App\Feed;
 use App\Lib\FeedManager\ProfileFeedManager;
 use App\Lib\FeedManager\UserFeedManager;
-use App\Lib\TimeSeriesCollection;
 use App\Lib\TimeSeriesPaginator;
-use App\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class PushStrategy extends StrategyBase implements FeedContract {

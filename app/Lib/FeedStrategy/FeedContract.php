@@ -6,7 +6,6 @@ use App\Feed;
 use App\Lib\TimeSeriesPaginator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Collection;
 
 interface FeedContract
 {

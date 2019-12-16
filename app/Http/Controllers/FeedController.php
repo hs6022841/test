@@ -6,7 +6,6 @@ use App\Feed;
 use App\Lib\FeedStrategy\FeedContract;
 use App\Lib\FeedSubscriber\FeedSubscriberContract;
 use Carbon\Carbon;
-use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Webpatser\Uuid\Uuid;
@@ -15,6 +14,7 @@ class FeedController extends Controller
 {
     protected $feedService;
     protected $feedSubscriberService;
+    protected $defaultPageSize = 10;
 
     /**
      * Create a new controller instance.
@@ -32,28 +32,32 @@ class FeedController extends Controller
     /**
      * Show the feed list.
      *
+     * @param Request $request
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function index()
+    public function index(Request $request)
     {
-        // preload the followers to warm up the cache
-        $this->feedSubscriberService->loadFollowers(Auth::id());
+        // refresh the redis ttl
+        $this->feedSubscriberService->register(Auth::id());
 
-        $feeds = $this->feedService->getFeed(Auth::user());
+        $time=$request->get('time') ? Carbon::createFromTimestampMs($request->get('time')) : Carbon::now();
+        $feeds = $this->feedService->getFeed(Auth::user(), $time, $this->defaultPageSize);
 
-        return view('feed', ['feeds' => $feeds]);
+        return view('feed', ['feeds' => $feeds, 'next' => $feeds->nextPageUrl()]);
     }
 
     /**
      * Show the user profile.
      *
+     * @param Request $request
      * @return \Illuminate\Contracts\Support\Renderable
      */
-    public function profile()
+    public function profile(Request $request)
     {
-        $feeds = $this->feedService->getProfile(Auth::user());
+        $time=$request->get('time') ? Carbon::createFromTimestampMs($request->get('time')) : Carbon::now();
+        $feeds = $this->feedService->getProfile(Auth::user(), $time, $this->defaultPageSize);
 
-        return view('feed', ['feeds' => $feeds]);
+        return view('feed', ['feeds' => $feeds, 'next' => $feeds->nextPageUrl()]);
     }
 
     /**

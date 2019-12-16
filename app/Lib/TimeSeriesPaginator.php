@@ -25,6 +25,9 @@ class TimeSeriesPaginator extends Paginator
         }
     }
 
+    protected $pageName = 'time';
+    protected $path = '';
+
     /**
      * Get the instance as an array.
      *
@@ -89,7 +92,7 @@ class TimeSeriesPaginator extends Paginator
      */
     public function nextPageUrl()
     {
-        return $this->url($this->timeTo()->getPreciseTimestamp(3));
+        return $this->url($this->timeTo() ? $this->timeTo()->getPreciseTimestamp(3) : 0);
     }
 
 }

@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Redis;
 class SubscribeToAll implements FeedSubscriberContract
 {
     protected $key;
+    protected $cacheTTL;
 
     public function __construct()
     {
         $this->key = 'users';
+        $this->cacheTTL = env('CACHE_TTL', 60);
     }
 
     /**
@@ -25,6 +27,7 @@ class SubscribeToAll implements FeedSubscriberContract
     {
         // using sorted set here so that we can slice the set during the fanout process
         Redis::zAdd($this->key, $actorUserId, $actorUserId);
+        Redis::expire($this->key, $this->cacheTTL);
     }
 
 
@@ -34,6 +37,7 @@ class SubscribeToAll implements FeedSubscriberContract
     public function deregister($actorUserId) : void
     {
         Redis::zRem($this->key, $actorUserId);
+        Redis::expire($this->key, $this->cacheTTL);
     }
 
     /**
@@ -57,15 +61,7 @@ class SubscribeToAll implements FeedSubscriberContract
      */
     public function loadFollowers($actorUserId): void
     {
-        $exist = Redis::exists($this->key);
-        if(!$exist) {
-            // for this case specifically, since we are pushing to all users, fetching the entire user table is necessary
-            // though it should be paginated and load the cache in an async task
-            $users = User::pluck('id');
-            foreach($users as $user) {
-                Redis::zAdd($this->key, $user, $user);
-            }
-        }
+        // TODO: Implement loadFollowee() method.
     }
 
     /**
